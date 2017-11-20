@@ -48,6 +48,9 @@
 			var orthoCamera, backgroundScene;
 			var lineMesh;
 			var nbSelecPts = 0;
+			var points, circleMesh, circleFrame, arrows;
+			var rotation = false;
+			var m;
 
 			init();
 			render();
@@ -68,13 +71,6 @@
 				// set up background
 				orthoCamera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 1000);
 
-				// var plane = new THREE.PlaneBufferGeometry( width, height );
-				// var background = new THREE.Mesh( plane, new THREE.MeshBasicMaterial( { color: 0xe8ac73 } ) );
-				// background.position.z = -500;
-
-				// background.material.depthTest = false;
-				// background.material.depthWrite = false;
-
 				var lines = new THREE.Geometry();
 				lines.vertices.push(new THREE.Vector3(0, 0, -500));
 				lines.vertices.push(new THREE.Vector3(0, 0, 0));
@@ -84,23 +80,28 @@
 				lineMesh.material.depthTest = false;
 				lineMesh.material.depthWrite = false;
 
+				var circle = new THREE.Geometry();
+				for (var i = 0; i < 41; i++) {
+					circle.vertices.push(new THREE.Vector3(Math.cos(i*Math.PI/20), Math.sin(i*Math.PI/20), 0))
+				}
+				circleMesh = new THREE.Line(circle, new THREE.LineBasicMaterial({color: 0x0077ff, linewidth: 3}));
+
 				backgroundScene = new THREE.Scene();
 				backgroundScene.add( lineMesh );
+				backgroundScene.add(circleMesh);
 				backgroundScene.add(orthoCamera);
 
 				// GUI
 				var gui = new dat.GUI();
 
 				// camera
-				camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 1000 );	
-				camera.position.z = 5;
+				camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 1000 );
 
 				// light
 				var light = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
 				var ambientLight = new THREE.AmbientLight( 0x555555 );
 
 				scene = new THREE.Scene();
-				// scene.add(mesh);
 				scene.add(camera);
 				scene.add(light);
 				scene.add(ambientLight);
@@ -113,6 +114,13 @@
 			function render() {
 				// controls.update();
 
+				if(rotation) {
+					var q = new THREE.Quaternion(circleFrame[0].x, circleFrame[0].y, 0, 0.01);
+					circleMesh.applyQuaternion(q);
+
+					circleMesh.geometry.verticesNeedUpdate = true;
+				}
+
 				requestAnimationFrame( render );
 
 	            renderer.autoClear = false;
@@ -124,36 +132,140 @@
 			function onWindowResize() {
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
+				orthoCamera.left = window.innerWidth / - 2;
+				orthoCamera.right = window.innerWidth /  2;
+				orthoCamera.top = window.innerHeight / 2;
+				orthoCamera.bottom = window.innerHeight / - 2;
+				orthoCamera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
 			}
 
 			function onDocumentMouseDown(event) {
-				var x = event.clientX, y = event.clientY;
+				var rect = renderer.domElement.getBoundingClientRect();
+				var x = event.clientX - rect.left - rect.width/2;
+				var y = rect.top - event.clientY + rect.height/2;
+				// switch(nbSelecPts) {
+				// 	case 4:
+				// 	nbSelecPts = 0;
+				// 	case 0:
+				// 	lineMesh.geometry.vertices[0] = (new THREE.Vector3(x, y, -500));
+				// 	case 1:
+				// 	lineMesh.geometry.vertices[1] = (new THREE.Vector3(x, y, -500));
+				// 	case 2:
+				// 	lineMesh.geometry.vertices[2] = (new THREE.Vector3(x, y, -500));
+				// 	case 3:
+				// 	lineMesh.geometry.vertices[3] = (new THREE.Vector3(x, y, -500));
+				// 	lineMesh.geometry.verticesNeedUpdate = true;
+				// 	nbSelecPts++;
+				// }
 				switch(nbSelecPts) {
-					case 4:
-					nbSelecPts = 0;
 					case 0:
-					lineMesh.geometry.vertices[0] = (new THREE.Vector3(x - window.innerWidth/2, window.innerHeight/2 - y, -500));
-					case 1:
-					lineMesh.geometry.vertices[1] = (new THREE.Vector3(x - window.innerWidth/2, window.innerHeight/2 - y, -500));
-					case 2:
-					lineMesh.geometry.vertices[2] = (new THREE.Vector3(x - window.innerWidth/2, window.innerHeight/2 - y, -500));
-					case 3:
-					lineMesh.geometry.vertices[3] = (new THREE.Vector3(x - window.innerWidth/2, window.innerHeight/2 - y, -500));
-					lineMesh.geometry.verticesNeedUpdate = true;
+					points = new Array();
+					points.push(new THREE.Vector3(x,y,-500));
+					circleMesh.position.x = x;
+					circleMesh.position.y = y;
+					circleMesh.position.z = -500;
+					circleMesh.scale.x = 0;
+					circleMesh.scale.y = 0;
 					nbSelecPts++;
+					break;
+					case 1:
+					points.push(new THREE.Vector3(x,y,-500));
+
+					circleFrame = new Array();
+					var u = new THREE.Vector3();
+					u.subVectors(points[1], points[0]);
+					circleFrame.push(u.normalize());
+					circleFrame.push(new THREE.Vector3(- u.y, u.x, 0));
+					circleFrame.push(new THREE.Vector3(0, 0, 1));
+
+					var origin = new THREE.Vector3();
+					origin.addVectors(points[1], points[0]).divideScalar(2);
+
+					m = new THREE.Matrix3();
+					m.set( u.x, u.y, 0,
+					      -u.y, u.x, 0,
+					       0, 0, 1 );
+
+					arrows = new Array();
+					arrows.push(new THREE.ArrowHelper(circleFrame[0], origin, 100));
+					arrows.push(new THREE.ArrowHelper(circleFrame[1], origin, 100));
+					arrows.push(new THREE.ArrowHelper(circleFrame[2], origin, 100));
+					backgroundScene.add(arrows[0]);
+					backgroundScene.add(arrows[1]);
+					backgroundScene.add(arrows[2]);
+
+					nbSelecPts++;
+					break;
+					case 2:
+					x -= (points[0].x +points[1].x)/2;
+					y -= (points[0].y +points[1].y)/2;
+					m = new THREE.Matrix3();
+					m.set( circleFrame[0].x, circleFrame[0].y, 0,
+					      -circleFrame[0].y, circleFrame[0].x, 0,
+					       0, 0, 1 );
+					var pos = new THREE.Vector3(x, y, -1);
+					pos.applyMatrix3(m);
+
+					var radius =  points[1].distanceTo(points[0])/2;
+					if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
+						var cos = pos.y / Math.sqrt( Math.pow(radius, 2) - Math.pow(pos.x, 2) );
+						var cos_2 = Math.sqrt((1 + cos)/2);
+						var sin_2 = Math.sqrt((1 - cos)/2);
+						var rotation = new THREE.Quaternion(sin_2*circleFrame[0].x, sin_2*circleFrame[0].y, 0, cos_2);
+						circleMesh.applyQuaternion(rotation);
+						circleMesh.geometry.verticesNeedUpdate = true;
+					}
 					break;
 				}
 			}
 
 			function onDocumentMouseMove(event) {
-				if(nbSelecPts > 0) {
-					var x = event.clientX, y = event.clientY;
-					lineMesh.geometry.vertices[nbSelecPts] = (new THREE.Vector3(x - window.innerWidth/2, window.innerHeight/2 - y, -500));
-					lineMesh.geometry.verticesNeedUpdate = true;
+				var rect = renderer.domElement.getBoundingClientRect();
+				var x = event.clientX - rect.left - rect.width/2;
+				var y = rect.top - event.clientY + rect.height/2;
+				// if(nbSelecPts > 0 && nbSelecPts < 4) {
+				// 	lineMesh.geometry.vertices[nbSelecPts] = (new THREE.Vectpowor3(x, y, -500));
+				// 	lineMesh.geometry.verticesNeedUpdate = true;
+				// }
+				switch(nbSelecPts) {
+					case 1:
+					var center = new THREE.Vector3();
+					center.copy(points[0]);
+					center.x = (center.x + x)/2;
+					center.y = (center.y + y)/2;
+					var radius = center.distanceTo(points[0]);
+					circleMesh.scale.x = circleMesh.scale.y = radius;
+					circleMesh.position.x = center.x;
+					circleMesh.position.y = center.y;
+					break;
+					case 4:
+					x -= (points[0].x +points[1].x)/2;
+					y -= (points[0].y +points[1].y)/2;
+					m = new THREE.Matrix3();
+					m.set( circleFrame[0].x, circleFrame[0].y, 0,
+					      -circleFrame[0].y, circleFrame[0].x, 0,
+					       0, 0, 1 );
+					var pos = new THREE.Vector3(x, y, -1);
+					pos.applyMatrix3(m);
+
+					var radius =  points[1].distanceTo(points[0])/2;
+					if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
+						var cos = pos.y / Math.sqrt( Math.pow(radius, 2) - Math.pow(pos.x, 2) );
+						var sin = Math.sqrt(1 - Math.pow(cos, 2));
+						var rotation = new THREE.Quaternion(sin*circleFrame[0].x, sin*circleFrame[0].y, 0, cos);
+						circleMesh.applyQuaternion(rotation);
+						circleMesh.geometry.verticesNeedUpdate = true;
+					}
 				}
 			}
 
+			function orthoToProjec(position, z) {
+				var rect = renderer.domElement.getBoundingClientRect();
+				var x = - position.x * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
+				var y = - position.y * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
+				return new THREE.Vector3(x, y, z);
+			}
 		</script>
 
 	</body>
