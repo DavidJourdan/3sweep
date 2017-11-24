@@ -11,8 +11,8 @@
 		<style>
 			body { 
 				margin: 0px;
-				background-color: #000000;
 				overflow: hidden; 
+				background-image: url('images/cube-tube.jpg');
 			}
 			canvas { width: 100%; height: 100% }
 
@@ -23,7 +23,6 @@
 				text-align: center;
 				color: #fff;
 			}
-
 			a { color: mediumaquamarine; }
 		</style>
 
@@ -66,9 +65,10 @@
 				var width = window.innerWidth, height = window.innerHeight;
 
 				// set up renderer
-				renderer = new THREE.WebGLRenderer({ antialias: true });
+				renderer = new THREE.WebGLRenderer({ antialias: true, alpha:true });
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( width, height );
+				renderer.setClearColor(0x000000, 0);
 				document.body.appendChild( renderer.domElement );
 
 				// set up camera
