@@ -12,7 +12,7 @@
 			body { 
 				margin: 0px;
 				overflow: hidden; 
-				background-image: url('images/cube-tube.jpg');
+				background-image: url('images/cube.jpg');
 			}
 			canvas { width: 100%; height: 100% }
 
@@ -184,10 +184,10 @@
 
 							cylinder.geometry = new THREE.CylinderGeometry(radius, radius, 1, 30);
 							var mat = new THREE.Matrix4();
-							mat.set(u.x, -u.y, 0, 0,
+							mat.set(u.x,-u.y, 0, 0,
 							        u.y, u.x, 0, 0,
-							          0, 0, 1, 0,
-							          0, 0, 0, 1 );
+							          0,   0, 1, 0,
+							          0,   0, 0, 1 );
 							cylinder.applyMatrix(mat);
 							cylinder.applyQuaternion(rotation);
 							cylinder.geometry.verticesNeedUpdate = true;
@@ -233,6 +233,13 @@
 
 						case 2:
 						// TODO ellipse follows mouse
+						var pos = new THREE.Vector3(x - circleMesh.position.x, y - circleMesh.position.y, 0);
+						pos.applyEuler(new THREE.Euler( 0, 0, -circleMesh.rotation.z));
+						var radius = circleMesh.scale.x;	
+						if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
+							var axis = pos.y/Math.sqrt(1 - pos.x*pos.x/(radius*radius));
+							circleMesh.scale.y = axis;
+						}
 						break;
 
 						case 3:
@@ -244,8 +251,7 @@
 					}
 				if(parameters.shape == "Cube") {
 					if(nbSelecPts == 3) {
-						var dir = new THREE.Vector3( 0, 0, 1 );
-						dir.applyQuaternion(rotation);
+						var dir = w;
 
 						var t = dir.dot(new THREE.Vector3(x - points[2].x, y - points[2].y, 0));
 						dir.multiplyScalar(t);
@@ -303,15 +309,19 @@
 					u = new THREE.Vector3();
 					u.subVectors(points[1], points[0]).normalize();
 
+					circleMesh.rotation.z = u.angleTo(new THREE.Vector3(1,0,0));
+
 					nbSelecPts++;
 					break;
 
 					case 2:
-					var origin = new THREE.Vector3();
-					points[2] = origin.addVectors(points[1], points[0]).divideScalar(2);
+					points[2].addVectors(points[1], points[0]).divideScalar(2);
+						
+					// place the origin at the center of the cirlce
 					x -= points[2].x;
 					y -= points[2].y;
 
+					// rotate the axis
 					var pos = new THREE.Vector3(x, y, -1);
 					var m = new THREE.Matrix3();
 					m.set( u.x, u.y, 0,
@@ -321,7 +331,7 @@
 
 					radius =  points[1].distanceTo(points[0])/2;
 					if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
-						var cos = pos.y / Math.sqrt( Math.pow(radius, 2) - Math.pow(pos.x, 2) );
+						var cos = pos.y / Math.sqrt( radius*radius - pos.x*pos.x );
 						var cos_2 = Math.sqrt((1 + cos)/2);
 						var sin_2 = Math.sqrt((1 - cos)/2);
 						rotation = new THREE.Quaternion(sin_2*u.x, sin_2*u.y, 0, cos_2);
@@ -335,7 +345,7 @@
 						v.applyQuaternion(rotation);
 						w.applyQuaternion(rotation);
 					}
-					break;	
+					break;
 
 					case 3:
 					nbSelecPts++;
@@ -355,39 +365,50 @@
 
 					case 2:
 					u = new THREE.Vector3();
-					u.subVectors(points[2], points[0]).normalize();
+					u.subVectors(points[0], points[1]);
+
+					v = new THREE.Vector3();
+					v.subVectors(points[2], points[1]);
+
+					var u_squared = u.length()*u.length();
+					var v_squared = v.length()*v.length();
+					var delta = Math.pow(u_squared - v_squared, 2) + 4*u.dot(v)*u.dot(v); //discriminant of the quadratic equation
+
+					var L = ( u_squared + v_squared + Math.sqrt(delta) ) / 2.; //area (size squared) of the square
+
+					points[0].z += Math.sqrt( L - u_squared );
+					points[2].z += Math.sqrt( L - v_squared );
+
+					u.z = Math.sqrt( L - u_squared );
+					v.z = Math.sqrt( L - v_squared );
+					u.normalize();
+					v.normalize();
+					w = (new THREE.Vector3()).crossVectors(u,v);
 
 					var center = new THREE.Vector3();
 					center.addVectors(points[2], points[0]).divideScalar(2);
 
-					var pos = new THREE.Vector3(points[1].x - center.x, points[1].y - center.y, -1);
-					var m = new THREE.Matrix3();
-					m.set( u.x, u.y, 0,
-					      -u.y, u.x, 0,
-					       0, 0, 1 );
-					pos.applyMatrix3(m);
+					var l = Math.sqrt(L);
+					var geometry = new THREE.BoxGeometry( l, l, 1 );
+					var material = new THREE.MeshStandardMaterial( {color: 0x0077ff} );
+					box = new THREE.Mesh( geometry, material );
+					box.position.copy(center);
 
-					radius =  points[2].distanceTo(points[0])/2;
-					if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
-						var cos = pos.y / Math.sqrt( Math.pow(radius, 2) - Math.pow(pos.x, 2) );
-						var cos_2 = Math.sqrt((1 + cos)/2);
-						var sin_2 = Math.sqrt((1 - cos)/2);
-						rotation = new THREE.Quaternion(sin_2*u.x, sin_2*u.y, 0, cos_2);
-						nbSelecPts++;
+					//first, align an edge of the square with u
+					var q = new THREE.Quaternion();
+					q.setFromUnitVectors(new THREE.Vector3(0,1,0), u.normalize());
 
-						var size = Math.sqrt(2)*radius;
-						var geometry = new THREE.BoxGeometry( size, size, 1 );
-						var material = new THREE.MeshStandardMaterial( {color: 0x0077ff} );
-						box = new THREE.Mesh( geometry, material );
-						box.position.copy(center);
+					box.applyQuaternion(q);
 
-						box.rotation.z = u.angleTo(new THREE.Vector3(1, -1, 0));
-						box.applyQuaternion(rotation);
-						scene.add( box );
+					//then, align the other with v
+					var q2 = new THREE.Quaternion();
+					q2.setFromUnitVectors((new THREE.Vector3(1,0,0)).applyQuaternion(q), v);
 
-						w = new THREE.Vector3(0, 0, 1);
-						w.applyQuaternion(rotation);
-					}
+					box.applyQuaternion(q2);
+
+					scene.add( box );
+
+					nbSelecPts++;
 					break;	
 
 					case 3:
