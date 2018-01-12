@@ -12,7 +12,7 @@
 			body { 
 				margin: 0px;
 				overflow: hidden; 
-				background-image: url('images/cube.jpg');
+				background-image: url('images/cube-tube.jpg');
 			}
 			canvas { width: 100%; height: 100% }
 
@@ -36,22 +36,16 @@
 		<script src="lib/three.js"></script>
 		<script src="lib/Detector.js"></script>
 		<script src='lib/dat.gui.min.js'></script>
+		<script src="js/Shape.js"></script>
+		<script src="js/Parallelepiped.js"></script>
+		<script src="js/Cylinder.js"></script>
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var camera, scene, renderer;
-			var geometry, parameters, wireframe;
-			var material, standardMaterial, wireMaterial;
-			var controls;
-			var camera;
-			var lineMesh;
-			var nbSelecPts = 0;
-			var points, circleMesh;
-			var u, v, w, rotation;
-			var cylinder;
 			var parameters;
-			var radius;
-			var box;
+			var nbSelecPts = 0;
+			var shape;
 
 			init();
 			render();
@@ -72,30 +66,6 @@
 
 				// set up camera
 				camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 1000);
-
-				// lines
-				var lines = new THREE.Geometry();
-				lines.vertices.push(new THREE.Vector3(0, 0, -500));
-				lines.vertices.push(new THREE.Vector3(0, 0, -500));
-				lines.vertices.push(new THREE.Vector3(0, 0, -500));
-				points = [];
-				points.push(new THREE.Vector3(0, 0, -500));
-				lineMesh = new THREE.Line(lines, new THREE.LineBasicMaterial({color: 0x0077ff, linewidth: 3}));
-				lineMesh.material.depthTest = false;
-				lineMesh.material.depthWrite = false;
-
-				// circle
-				var circle = new THREE.Geometry();
-				for (var i = 0; i < 41; i++) {
-					circle.vertices.push(new THREE.Vector3(Math.cos(i*Math.PI/20), Math.sin(i*Math.PI/20), 0))
-				}
-				circleMesh = new THREE.Line(circle, new THREE.LineBasicMaterial({color: 0x0077ff, linewidth: 3}));
-
-				// cylinder
-				var geometry = new THREE.CylinderGeometry(10, 10, 10, 30);
-				var material = new THREE.MeshStandardMaterial( {color: 0x0077ff} );
-				cylinder = new THREE.Mesh( geometry, material );
-				cylinder.rotation.x = Math.PI/2;
 
 				// GUI
 				parameters = {
@@ -126,9 +96,6 @@
 				
 				// scene
 				scene = new THREE.Scene();
-				scene.add(cylinder);
-				scene.add( lineMesh );
-				scene.add(circleMesh);
 				scene.add(camera);
 				scene.add( lights[ 0 ] );
 				scene.add( lights[ 1 ] );
@@ -163,48 +130,28 @@
 				var y = rect.top - event.clientY + rect.height/2;
 
 				switch(nbSelecPts) {
-					case 4:
-					nbSelecPts = 0;
 					case 0:
-					lineMesh.geometry.vertices[0] = (new THREE.Vector3(x, y, -500));
+					if(parameters.shape === "Cylinder") 
+						shape = new Cylinder(x, y, parameters, scene);
+					else if(parameters.shape === "Cube") 
+						shape = new Parallelepiped(x, y, parameters, scene);
+					scene.add(shape.line);
+					nbSelecPts++;
+					break;
+
 					case 1:
-					lineMesh.geometry.vertices[1] = (new THREE.Vector3(x, y, -500));
+					nbSelecPts++;
+					break;
+
 					case 2:
-					lineMesh.geometry.vertices[2] = (new THREE.Vector3(x, y, -500));
-					lineMesh.geometry.verticesNeedUpdate = true;
-				}
-
-				switch(parameters.shape) {
-					case 'Cylinder':
-					alignCircle(x,y);
-
-					if(parameters.straightAxis) {
-						if(nbSelecPts == 3) {
-							var radius =  points[1].distanceTo(points[0])/2;
-
-							cylinder.geometry = new THREE.CylinderGeometry(radius, radius, 1, 30);
-							var mat = new THREE.Matrix4();
-							mat.set(u.x,-u.y, 0, 0,
-							        u.y, u.x, 0, 0,
-							          0,   0, 1, 0,
-							          0,   0, 0, 1 );
-							cylinder.applyMatrix(mat);
-							cylinder.applyQuaternion(rotation);
-							cylinder.geometry.verticesNeedUpdate = true;
-						}
-					} else {
-						if(nbSelecPts == 3) {
-							var center = points[2];
-							points = [];
-							points.push(center);
-							points.push(center);
-						}
+					if(shape.align(x,y) !== undefined) {
+						scene.add(shape.mesh);
+						nbSelecPts++;
 					}
 					break;
 
-					case 'Cube':
-					alignSquare(x, y);
-					points[3] = new THREE.Vector3();
+					case 3:
+					nbSelecPts = 0;
 					break;
 				}
 			}
@@ -214,64 +161,35 @@
 				var x = event.clientX - rect.left - rect.width/2;
 				var y = rect.top - event.clientY + rect.height/2;
 
-				if(nbSelecPts > 0 && nbSelecPts < 3) {
-					lineMesh.geometry.vertices[nbSelecPts] = (new THREE.Vector3(x, y, -500));
-					lineMesh.geometry.verticesNeedUpdate = true;
-				}
-				if(parameters.shape == "Cylinder")
-					switch(nbSelecPts) {
-						case 1:
-						var center = new THREE.Vector3();
-						center.copy(points[0]);
-						center.x = (center.x + x)/2;
-						center.y = (center.y + y)/2;
-						var radius = center.distanceTo(points[0]);
-						circleMesh.scale.x = circleMesh.scale.y = radius;
-						circleMesh.position.x = center.x;
-						circleMesh.position.y = center.y;
-						break;
+				switch(nbSelecPts) {
+					case 1:
+					shape.line.geometry.vertices[1] = new THREE.Vector3(x, y, -500);
+					shape.line.geometry.verticesNeedUpdate = true;
+					break;
 
-						case 2:
-						// TODO ellipse follows mouse
-						var pos = new THREE.Vector3(x - circleMesh.position.x, y - circleMesh.position.y, 0);
-						pos.applyEuler(new THREE.Euler( 0, 0, -circleMesh.rotation.z));
-						var radius = circleMesh.scale.x;	
-						if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
-							var axis = pos.y/Math.sqrt(1 - pos.x*pos.x/(radius*radius));
-							circleMesh.scale.y = axis;
-						}
-						break;
+					case 2:
+					shape.trace(x,y, scene);
+					break;
 
-						case 3:
-						if(parameters.straightAxis) {
-							traceStraightAxis(x, y);
-						} else {
-							traceCurvedAxis(x,y);
-						}
-					}
-				if(parameters.shape == "Cube") {
-					if(nbSelecPts == 3) {
-						var dir = w;
-
-						var t = dir.dot(new THREE.Vector3(x - points[2].x, y - points[2].y, 0));
-						dir.multiplyScalar(t);
-
-						points[3].addVectors(dir, points[2]);
-						lineMesh.geometry.verticesNeedUpdate = true;
-
-						box.position.addVectors(points[2], points[0]).divideScalar(2);
-						dir.multiplyScalar(0.5);
-						box.position.add(dir);
-
-						var r = points[2].distanceTo(points[0])/Math.sqrt(2);
-						var height = points[2].distanceTo(points[3]);
-						box.geometry = new THREE.BoxGeometry( r, r, height );
-						
-						box.geometry.verticesNeedUpdate = true;
-					}
+					case 3:
+					shape.sweep(x,y);
+					break;
 				}
 			}
 
+
+
+
+
+			function orthoToProjec(position, z) {
+				var rect = renderer.domElement.getBoundingClientRect();
+				var x = - position.x * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
+				var y = - position.y * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
+				return new THREE.Vector3(x, y, z);
+			}
+
+
+			
 			function TubeCurve(list) {
 				THREE.Curve.call( this );
 				this.points = list;
@@ -285,154 +203,6 @@
 				return this.points[i];
 
 			};
-
-			function orthoToProjec(position, z) {
-				var rect = renderer.domElement.getBoundingClientRect();
-				var x = - position.x * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
-				var y = - position.y * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
-				return new THREE.Vector3(x, y, z);
-			}
-
-			function alignCircle(x, y) {
-				points = lineMesh.geometry.vertices;
-				switch(nbSelecPts) {
-					case 0:
-					circleMesh.position.x = x;
-					circleMesh.position.y = y;
-					circleMesh.position.z = -500;
-					circleMesh.scale.x = 0;
-					circleMesh.scale.y = 0;
-					nbSelecPts++;
-					break;
-
-					case 1:
-					u = new THREE.Vector3();
-					u.subVectors(points[1], points[0]).normalize();
-
-					circleMesh.rotation.z = u.angleTo(new THREE.Vector3(1,0,0));
-
-					nbSelecPts++;
-					break;
-
-					case 2:
-					points[2].addVectors(points[1], points[0]).divideScalar(2);
-						
-					// place the origin at the center of the cirlce
-					x -= points[2].x;
-					y -= points[2].y;
-
-					// rotate the axis
-					var pos = new THREE.Vector3(x, y, -1);
-					var m = new THREE.Matrix3();
-					m.set( u.x, u.y, 0,
-					      -u.y, u.x, 0,
-					       0, 0, 1 );
-					pos.applyMatrix3(m);
-
-					radius =  points[1].distanceTo(points[0])/2;
-					if(Math.abs(pos.x) < radius && Math.abs(pos.y) < radius) {
-						var cos = pos.y / Math.sqrt( radius*radius - pos.x*pos.x );
-						var cos_2 = Math.sqrt((1 + cos)/2);
-						var sin_2 = Math.sqrt((1 - cos)/2);
-						rotation = new THREE.Quaternion(sin_2*u.x, sin_2*u.y, 0, cos_2);
-						circleMesh.applyQuaternion(rotation);
-						circleMesh.geometry.verticesNeedUpdate = true;
-						nbSelecPts++;
-
-						v = new THREE.Vector3(-u.y, u.x, 0);
-						w = new THREE.Vector3(0, 0, 1);
-						u.applyQuaternion(rotation);
-						v.applyQuaternion(rotation);
-						w.applyQuaternion(rotation);
-					}
-					break;
-
-					case 3:
-					nbSelecPts++;
-				}
-			}
-
-			function alignSquare(x, y) {
-				points = lineMesh.geometry.vertices;
-				switch(nbSelecPts) {
-					case 0:
-					nbSelecPts++;
-					break;
-
-					case 1:
-					nbSelecPts++;
-					break;
-
-					case 2:
-					u = new THREE.Vector3();
-					u.subVectors(points[0], points[1]);
-
-					v = new THREE.Vector3();
-					v.subVectors(points[2], points[1]);
-
-					var u_squared = u.length()*u.length();
-					var v_squared = v.length()*v.length();
-					var delta = Math.pow(u_squared - v_squared, 2) + 4*u.dot(v)*u.dot(v); //discriminant of the quadratic equation
-
-					var L = ( u_squared + v_squared + Math.sqrt(delta) ) / 2.; //area (size squared) of the square
-
-					points[0].z += Math.sqrt( L - u_squared );
-					points[2].z += Math.sqrt( L - v_squared );
-
-					u.z = Math.sqrt( L - u_squared );
-					v.z = Math.sqrt( L - v_squared );
-					u.normalize();
-					v.normalize();
-					w = (new THREE.Vector3()).crossVectors(u,v);
-
-					var center = new THREE.Vector3();
-					center.addVectors(points[2], points[0]).divideScalar(2);
-
-					var l = Math.sqrt(L);
-					var geometry = new THREE.BoxGeometry( l, l, 1 );
-					var material = new THREE.MeshStandardMaterial( {color: 0x0077ff} );
-					box = new THREE.Mesh( geometry, material );
-					box.position.copy(center);
-
-					//first, align an edge of the square with u
-					var q = new THREE.Quaternion();
-					q.setFromUnitVectors(new THREE.Vector3(0,1,0), u.normalize());
-
-					box.applyQuaternion(q);
-
-					//then, align the other with v
-					var q2 = new THREE.Quaternion();
-					q2.setFromUnitVectors((new THREE.Vector3(1,0,0)).applyQuaternion(q), v);
-
-					box.applyQuaternion(q2);
-
-					scene.add( box );
-
-					nbSelecPts++;
-					break;	
-
-					case 3:
-					nbSelecPts++;
-				}
-			}
-
-			function traceStraightAxis(x, y) {
-				var dir = new THREE.Vector3( 0, 0, 1 );
-				dir.applyQuaternion(rotation);
-
-				var t = dir.dot(new THREE.Vector3(x - points[2].x, y - points[2].y, 0));
-				dir.multiplyScalar(t);
-
-				points[3] = dir.add(points[2]);
-				lineMesh.geometry.verticesNeedUpdate = true;
-
-				cylinder.position.addVectors(points[2], points[3]).divideScalar(2);
-				var r =  points[1].distanceTo(points[0])/2;
-				var height = points[2].distanceTo(points[3]);
-				cylinder.geometry = new THREE.CylinderGeometry(r, r, height, 40);
-				
-				cylinder.geometry.verticesNeedUpdate = true;
-			}
 
 			function traceCurvedAxis(x,y) {
 				var end = points.length - 1;
