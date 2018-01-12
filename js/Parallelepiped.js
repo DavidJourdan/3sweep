@@ -55,17 +55,25 @@ Parallelepiped.prototype.align = function(x,y) {
 Parallelepiped.prototype.sweep = function(x,y) {
 	this.scene.remove(this.line);
 
-	var height = this.frame.w.dot(new THREE.Vector3(x - this.last.x, y - this.last.y, 0));
+	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
+	var height = this.frame.w.dot(direction);
+	direction.normalize();
+
 	height /= Math.sqrt(1 - this.frame.w.z**2);
 	var vec = this.frame.w.clone();
 
 	this.mesh.position.addVectors(this.center, vec.multiplyScalar(height/2));
 
-	// var q = new THREE.Quaternion();
-	// q.setFromUnitVectors(new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0), new THREE.Vector3(x - this.last.x, y - this.last.y, 0));
-	// this.mesh.applyQuaternion(q);
-	// this.frame.w.applyQuaternion(q);
-
+	var q = new THREE.Quaternion();
+	var w = new THREE.Vector3();
+	w.crossVectors(this.frame.u,this.frame.v);
+	if(w.dot(direction) > 0.95) {
+		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
+		w.normalize();
+		q.setFromUnitVectors(w, direction);
+		this.mesh.applyQuaternion(q);
+		this.frame.w.applyQuaternion(q);
+	}
 	var l = this.mesh.geometry.parameters.width;
 	this.mesh.geometry = new THREE.BoxGeometry( l, l, Math.abs(height) );
 };
