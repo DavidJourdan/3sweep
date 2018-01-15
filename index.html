@@ -11,17 +11,20 @@
 		<style>
 			body { 
 				margin: 0px;
-				overflow: hidden; 
-				background-image: url('images/432-park.jpg');
+				overflow: hidden;
 			}
-			canvas { width: 100%; height: 100% }
+			canvas { 
+				width: 100%; 
+				height: 100%;
+				position: absolute;
+			}
 
 			#info {
 				position: absolute;
 				padding: 10px;
 				width: 100%;
 				text-align: center;
-				color: black;	
+				color: black;
 			}
 			a { color: mediumaquamarine; }
 		</style>
@@ -32,6 +35,7 @@
 			3 sweep, web version <br />
 			Built using <a href="http://threejs.org"> three.js </a> 
 		</div>
+
 
 		<script src="lib/three.js"></script>
 		<script src="lib/Detector.js"></script>
@@ -46,12 +50,62 @@
 			var parameters;
 			var nbSelecPts = 0;
 			var shape;
+			var bitmap = {};
 
 			init();
 			render();
 
 			function loadImage(name) {
+				var xhr = new XMLHttpRequest();
+				xhr.open('GET', name, true);
+				xhr.responseType = 'arraybuffer';
+				
+				xhr.onload = function(e) {
+					// response is unsigned 8 bit integer
+					var view = new DataView(this.response);
+					bitmap.fileheader = {
+						bfType: view.getUint16(0, true),
+						bfSize: view.getUint32(2, true),
+						bfReserved1: view.getUint16(6, true),
+						bfReserved2: view.getUint16(8, true),
+						bfOffBits: view.getUint32(10, true)
+					};
+					bitmap.infoheader = {
+						biSize: view.getUint32(14, true),
+						biWidth: view.getUint32(18, true),
+						biHeight: view.getUint32(22, true),
+						biPlanes: view.getUint16(26, true),
+						biBitCount: view.getUint16(28, true),
+						biCompression: view.getUint32(30, true),
+						biSizeImage: view.getUint32(34, true),
+						biXPxPerMeter: view.getUint32(38, true),
+						biYPxPerMeter: view.getUint32(42, true),
+						biClrUsed: view.getUint32(46, true),
+						biClrImportant: view.getUint32(50, true)
+					};
+					var start = bitmap.fileheader.bfOffBits;  
+					var width = bitmap.infoheader.biWidth;
+					var height = bitmap.infoheader.biHeight;
+					var stride =	Math.floor((bitmap.infoheader.biBitCount * width + 31) / 32) * 4;
 
+					bitmap.pixels = new Array(height);
+
+					for (var x = 0; x < width; x++) {
+						bitmap.pixels[x] = new Array(height);
+					}
+					for (var y = 0; y < height; y++) {
+						for (var x = 0; x < width; x++) {
+							var rg = view.getUint16(start + 3*x + stride*y, true);
+							var b = view.getUint8(start + 3*x + 2 + stride*y, true);
+							var hex = b + 256 * rg;
+							bitmap.pixels[x][y] = new THREE.Color(hex);
+						}
+					}
+
+				};
+				 
+				xhr.send();
+				
 			}
 
 			function init() {
@@ -62,7 +116,11 @@
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( width, height );
 				renderer.setClearColor(0x000000, 0);
-				document.body.appendChild( renderer.domElement );
+				var image = document.getElementById("image");
+				document.body.insertBefore( renderer.domElement, image );
+				// var image = document.createElement("img");
+				// image.setAttribute("src", "images/bottle.jpg");
+				// renderer.domElement.appendChild(image);
 
 				// set up camera
 				camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 1000);
@@ -93,7 +151,7 @@
 				lights[ 0 ].position.set( 0, 200, 0 );
 				lights[ 1 ].position.set( 100, 200, 100 );
 				lights[ 2 ].position.set( - 100, - 200, - 100 );
-				
+
 				// scene
 				scene = new THREE.Scene();
 				scene.add(camera);
@@ -102,9 +160,28 @@
 				scene.add( lights[ 2 ] );
 				scene.add(ambientLight);
 
+				// image
+				var texture = new THREE.TextureLoader().load( 'images/bottle.jpg' );
+
+				var plane;
+				if(texture.image.height < window.innerHeight && texture.image.width < window.innerWidth) {
+					plane = new THREE.PlaneGeometry(texture.image.width, texture.image.height);
+				} else {
+					var aspectRatio = texture.image.width / texture.image.height;
+					if(texture.image.height / window.innerHeight < texture.image.width / window.innerWidth) {
+						plane = new THREE.PlaneGeometry(window.innerWidth, window.innerWidth / aspectRatio);
+					} else plane = new THREE.PlaneGeometry(window.innerHeight * aspectRatio, window.innerHeight);
+				}
+				var material = new THREE.MeshBasicMaterial( { map: texture } );
+				var image = new THREE.Mesh(plane, material);
+				image.position.z = -999;
+				scene.add(image);
+				
 				window.addEventListener( 'resize', onWindowResize, false );
 				renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
 				renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
+
+				loadImage('images/bottle.bmp');
 			}
 
 			function render() {
@@ -122,6 +199,10 @@
 				camera.bottom = window.innerHeight / - 2;
 				camera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				// var img = document.getElementById("image");
+				// img.setAttribute("height", window.innerHeight + "");
+				// img.setAttribute("width", window.innerWidth + "");
 			}
 
 			function onDocumentMouseDown(event) {
@@ -177,50 +258,6 @@
 				}
 			}
 
-
-
-
-
-			function orthoToProjec(position, z) {
-				var rect = renderer.domElement.getBoundingClientRect();
-				var x = - position.x * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
-				var y = - position.y * 2 * z * Math.tan(camera.fov*Math.PI/360) / rect.height;
-				return new THREE.Vector3(x, y, z);
-			}
-
-
-			
-			function TubeCurve(list) {
-				THREE.Curve.call( this );
-				this.points = list;
-				this.size = list.length;
-			}
-			TubeCurve.prototype = Object.create( THREE.Curve.prototype );
-			TubeCurve.prototype.constructor = TubeCurve;
-
-			TubeCurve.prototype.getPoint = function ( t ) {
-				var i = Math.round(t*(this.size-1));
-				return this.points[i];
-
-			};
-
-			function traceCurvedAxis(x,y) {
-				var end = points.length - 1;
-				points[end] = new THREE.Vector3(x, y, -500);
-				var temp = new THREE.Vector3();
-				temp.subVectors(points[0], points[end]);
-				var s = v.dot(temp);
-				points[end].addScaledVector(v, s);
-				var dist = points[end - 1].distanceTo(points[end]);
-				if(dist > 5) {
-					var lines = new THREE.Geometry();
-					lines.vertices = points;
-					lineMesh.material = new THREE.LineBasicMaterial({color: 0x0077ff, linewidth: 3});
-					lineMesh.geometry = lines;
-					lineMesh.geometry.verticesNeedUpdate = true;
-					points.push(points[end]);
-				}
-			}
 		</script>
 
 	</body>
