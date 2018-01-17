@@ -1,5 +1,5 @@
-function Shape(x, y, parameters, scene) {
-	this.scene = scene;
+function Shape(x, y, parameters, edgeDetector) {
+	this.scene = edgeDetector.scene;
 
 	this.frame = {
 		u: new THREE.Vector3(), 
@@ -21,13 +21,17 @@ function Shape(x, y, parameters, scene) {
 	geom.vertices.push(new THREE.Vector3(x, y, -500));
 	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
 		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
+
+	this.edgeDetector = edgeDetector;
 }
 
 Shape.prototype.align = function(x,y) {
 };
 
 Shape.prototype.sweep = function(x,y) {
-	// body...	
+	if(this.constantRadius) {
+		this.sweepConstant(x,y);
+	} else this.sweepVarying(x,y);
 };
 
 Shape.prototype.arrowHelpers = function() {
@@ -37,3 +41,4 @@ Shape.prototype.arrowHelpers = function() {
 	helpers[2] = new THREE.ArrowHelper( this.frame.w, this.center, 100, 0x00ffff);
 	return helpers;
 };
+

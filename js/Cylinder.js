@@ -1,11 +1,12 @@
-function Cylinder(x, y, parameters, scene) {
-	Shape.call(this, x, y, parameters, scene);
+function Cylinder(x, y, parameters, edgeDetector) {
+	Shape.call(this, x, y, parameters, edgeDetector);
 	this.mesh.rotation.x = Math.PI/2;
 	this.circle = new THREE.Line(new THREE.Geometry(), this.line.material);
 	for (var i = 0; i < 41; i++) {
 		this.circle.geometry.vertices
 			.push(new THREE.Vector3(Math.cos(i*Math.PI/20), Math.sin(i*Math.PI/20), 0));
 	}
+	this.group = [];
 }
 
 Cylinder.prototype = Object.create(Shape.prototype);
@@ -13,6 +14,15 @@ Cylinder.prototype.constructor = Cylinder;
 
 Cylinder.prototype.align = function(x,y) {
 	this.scene.remove(this.circle);
+
+
+	if(!this.constantRadius) {
+		this.leftEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x000000, depthTest: false, depthWrite: false, size: 3 } ));
+		this.rightEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x555555, depthTest: false, depthWrite: false, size: 3 } ));
+		this.centers = [];
+		this.centers.push(this.center);
+	}
+
 
 	var points = [];
 	points.push(this.line.geometry.vertices[0]);
@@ -24,7 +34,6 @@ Cylinder.prototype.align = function(x,y) {
 	this.frame.w = new THREE.Vector3(0, 0, 1);
 
 	this.last.copy(points[2]);
-	// this.center = points[1].clone().add(points[0]).divideScalar(2);
 	
 	// change the frame
 	var relativePt = new THREE.Vector3();
@@ -56,13 +65,15 @@ Cylinder.prototype.align = function(x,y) {
 
 		this.last.z += Math.sqrt(distDiff);
 
+		this.group.push(this.mesh);
+
 		return this.mesh;
 	}
 };
 
-Cylinder.prototype.sweep = function(x,y) {
+Cylinder.prototype.sweepConstant = function(x,y) {
 	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
-	var height = this.frame.w.dot(direction);
+	var height = Math.abs( this.frame.w.dot(direction) );
 	direction.normalize();
 
 	height /= Math.sqrt(1 - this.frame.w.z**2);
@@ -73,7 +84,7 @@ Cylinder.prototype.sweep = function(x,y) {
 	var q = new THREE.Quaternion();
 	var w = new THREE.Vector3();
 	w.crossVectors(this.frame.u, this.frame.v);
-	if(w.dot(direction) > 0.95) {
+	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
 		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
 		w.normalize();
 		q.setFromUnitVectors(w, direction);
@@ -82,8 +93,61 @@ Cylinder.prototype.sweep = function(x,y) {
 	}
 
 	var radius = this.mesh.geometry.parameters.radiusTop;
-	this.mesh.geometry = new THREE.CylinderGeometry( radius, radius, Math.abs(height), 32 );
+	this.mesh.geometry = new THREE.CylinderGeometry( radius, radius, height, 32 );
 };
+
+
+Cylinder.prototype.sweepVarying = function(x,y) {
+	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
+	var height = this.frame.w.dot(direction);
+	direction.normalize();
+
+	height /= Math.sqrt(1 - this.frame.w.z**2);
+	var vec = this.frame.w.clone();
+	var end = this.group.length - 1;
+
+	var curPoint = new THREE.Vector3();
+	var vec = this.frame.w.clone();
+	curPoint.addVectors(this.center, vec.multiplyScalar(height));
+
+	var h = curPoint.distanceTo( this.centers[this.centers.length - 1] );
+
+	vec = this.frame.w.clone();
+	this.group[end].position.addVectors(this.centers[this.centers.length - 1], vec.multiplyScalar( h/2 ));
+	if(h > 5) {
+		
+		this.centers.push(curPoint);
+
+		var edges = this.edgeDetector.bresenham(curPoint, this.line.geometry.vertices);
+		
+		this.leftEdges.geometry.vertices.push( edges.left );
+		this.rightEdges.geometry.vertices.push( edges.right );
+
+		var radiusBottom = this.group[end].geometry.parameters.radiusTop;
+		var radiusTop = edges.radius;
+
+		this.group[end].geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, h, 32);
+
+		var material = this.group[end].material;
+		var q = new THREE.Quaternion();
+		q.setFromUnitVectors(new THREE.Vector3(0,1,0), this.frame.w);
+
+		var mesh = new THREE.Mesh( new THREE.CylinderGeometry( radiusTop, radiusTop, 0.1, 32 ), material );
+		mesh.applyQuaternion(q);
+		mesh.position.copy(curPoint);
+		this.scene.add(mesh);
+
+		this.group.push( mesh );
+
+	} else {
+
+		var radiusBottom = this.group[end].geometry.parameters.radiusBottom;
+		this.group[end].geometry = new THREE.CylinderGeometry( radiusBottom, radiusBottom, h, 32 );
+
+	}
+
+};
+
 
 Cylinder.prototype.trace = function(x,y) {
 	if(this.circle.position.z === 0){

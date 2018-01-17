@@ -1,5 +1,5 @@
-function Parallelepiped(x, y, parameters, scene) {
-	Shape.call(this, x, y, parameters, scene);
+function Parallelepiped(x, y, parameters, edgeDetector) {
+	Shape.call(this, x, y, parameters, edgeDetector);
 	this.line.geometry.vertices.push(new THREE.Vector3(x, y, -500));
 }
 
@@ -7,6 +7,8 @@ Parallelepiped.prototype = Object.create(Shape.prototype);
 Parallelepiped.prototype.constructor = Parallelepiped;
 
 Parallelepiped.prototype.align = function(x,y) {
+	this.scene.remove(this.line);
+
 	var points = [];
 	points.push(this.line.geometry.vertices[0]);
 	points.push(this.line.geometry.vertices[1]);
@@ -52,9 +54,7 @@ Parallelepiped.prototype.align = function(x,y) {
 	return this.mesh;
 };
 
-Parallelepiped.prototype.sweep = function(x,y) {
-	this.scene.remove(this.line);
-
+Parallelepiped.prototype.sweepConstant = function(x,y) {
 	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
 	var height = this.frame.w.dot(direction);
 	direction.normalize();
@@ -67,7 +67,7 @@ Parallelepiped.prototype.sweep = function(x,y) {
 	var q = new THREE.Quaternion();
 	var w = new THREE.Vector3();
 	w.crossVectors(this.frame.u,this.frame.v);
-	if(w.dot(direction) > 0.95) {
+	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
 		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
 		w.normalize();
 		q.setFromUnitVectors(w, direction);
@@ -76,6 +76,35 @@ Parallelepiped.prototype.sweep = function(x,y) {
 	}
 	var l = this.mesh.geometry.parameters.width;
 	this.mesh.geometry = new THREE.BoxGeometry( l, l, Math.abs(height) );
+};
+
+Parallelepiped.prototype.sweepVarying = function(x,y) {
+	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
+	var height = Math.abs( this.frame.w.dot(direction) );
+	direction.normalize();
+
+	height /= Math.sqrt(1 - this.frame.w.z**2);
+	var vec = this.frame.w.clone();
+
+	this.mesh.position.addVectors(this.center, vec.multiplyScalar(height/2));
+
+	var q = new THREE.Quaternion();
+	var w = new THREE.Vector3();
+	w.crossVectors(this.frame.u,this.frame.v);
+	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
+		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
+		w.normalize();
+		q.setFromUnitVectors(w, direction);
+		this.mesh.applyQuaternion(q);
+		this.frame.w.applyQuaternion(q);
+	}
+
+	if(height - this.mesh.geometry.parameters.depth > 5) {
+
+	}
+
+	var l = this.mesh.geometry.parameters.width;
+	this.mesh.geometry = new THREE.BoxGeometry( l, l, height );
 };
 
 Parallelepiped.prototype.trace = function(x,y) {
