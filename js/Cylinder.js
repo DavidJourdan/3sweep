@@ -119,7 +119,9 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 		
 		this.centers.push(curPoint);
 
-		var edges = this.edgeDetector.bresenham(curPoint, this.line.geometry.vertices);
+		var dx = this.line.geometry.vertices[1].x - this.line.geometry.vertices[0].x;
+		var dy = this.line.geometry.vertices[1].y - this.line.geometry.vertices[0].y;
+		var edges = this.edgeDetector.bresenham(curPoint, this.group[end].geometry.parameters.radiusTop, dx, dy);
 		
 		this.leftEdges.geometry.vertices.push( edges.left );
 		this.rightEdges.geometry.vertices.push( edges.right );

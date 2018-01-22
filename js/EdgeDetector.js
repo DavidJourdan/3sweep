@@ -81,33 +81,44 @@ EdgeDetector.prototype.loadBmp = function() {
 	xhr.send();
 };
 
-EdgeDetector.prototype.bresenham = function(center, points) {
-	var dx = points[1].x - points[0].x;
-	var dy = points[1].y - points[0].y;
-
+EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 	var width = this.bitmap.infoheader.biWidth;
 	var height = this.bitmap.infoheader.biHeight;
 
 	var centerX = Math.round(center.x * this.warp + width/2);
 	var centerY = Math.round(center.y * this.warp + height/2);
 
+	var u = new THREE.Vector3(dx, dy, 0).normalize();
+
+	var leftX = Math.round((center.x - 0.8*radius * u.x)* this.warp + width/2);
+	var leftY = Math.round((center.y - 0.8*radius * u.y)* this.warp + height/2);
+
+	var rightX = Math.round((center.x + 0.8*radius * u.x)* this.warp + width/2);
+	var rightY = Math.round((center.y + 0.8*radius * u.y)* this.warp + height/2);
+
+	var minX = Math.min(0, (center.x - 1.2*radius * u.x)* this.warp + width/2);
+	var minY =  Math.min(0, (center.y - 1.2*radius * u.y)* this.warp + height/2);
+
+	var maxX = Math.max(width, (center.x + 1.2*radius * u.x)* this.warp + width/2);
+	var maxY = Math.max(height, (center.y + 1.2*radius * u.y)* this.warp + height/2);
+
 	var result = {};
 
 	if(dx == 0) {
-		var x = centerX;
-		var y = centerY;
+		var x = rightX;
+		var y = rightY;
 
-		while(y < height) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		while(y < maxY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
 			y++;
 		}
 
-		y = centerY;
-		while(y > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		y = leftY;
+		while(y > minY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
@@ -119,20 +130,20 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 	}
 
 	if(dy == 0) {
-		var x = centerX;
-		var y = centerY;
+		var x = rightX;
+		var y = rightY;
 
-		while(x < width) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		while(x < maxX) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
 			x++;
 		}
 
-		x = centerX;
-		while(x > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		x = leftX;
+		while(x > minX) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
@@ -144,15 +155,16 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 	}
 
 	if(dy/dx > 1) {
-		var err = center.x * this.warp + width/2 - centerX;
+		var err = (center.x + 0.8*radius * u.x)* this.warp + width/2 - rightX;
 
-		var x = centerX, y = centerY;
-		while(x < width && y < height) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		var x = rightX, y = rightY;
+
+		while(x < maxX && y < maxY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err += dy/dx;
+			err += dx/dy;
 			if(err >= 0.5) {
 				x++;
 				err -= 1;
@@ -160,15 +172,15 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 			y++;
 		}
 
-		err = centerX - (center.x * this.warp + width/2);
+		err = leftX - ( (center.x - 0.8*radius * u.x)* this.warp + width/2 );
 
-		x = centerX; y = centerY;
-		while(x > 0 && y > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		x = leftX; y = leftY;
+		while(x > minX && y > minY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err -= dy/dx;
+			err -= dx/dy;
 			if(err < - 0.5) {
 				x--;
 				err += 1;
@@ -176,11 +188,11 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 			y--;
 		}
 	} else if(dy/dx > 0) {
-		var err = center.y * this.warp + height/2 - centerY;
+		var err = (center.y + 0.8*radius * u.y)* this.warp + height/2 - rightY;
 
-		var x = centerX, y = centerY;
-		while(x < width && y < height) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		var x = rightX, y = rightY;
+		while(x < maxX && y < maxY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
@@ -192,11 +204,11 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 			x++;
 		}
 
-		err = centerY - (center.y * this.warp + height/2);
+		err = leftY - ( (center.y - 0.8*radius * u.y)* this.warp + height/2 );
 
-		x = centerX; y = centerY;
-		while(x > 0 && y > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		x = leftX; y = leftY;
+		while(x > minX && y > minY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
@@ -209,15 +221,15 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 		}
 
 	} else if(dy/dx > - 1) {
-		var err = centerY - (center.y * this.warp + height/2);
+		var err = rightY - ( (center.y + 0.8*radius * u.y)* this.warp + height/2 );
 
-		var x = centerX, y = centerY;
-		while(x < width && y > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		var x = rightX, y = rightY;
+		while(x < maxX && y > minY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err -= dy/dx;
+			err += dy/dx;
 			if(err < - 0.5) {
 				y--;
 				err += 1;
@@ -225,14 +237,14 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 			x++;
 		}
 
-		err = center.y * this.warp + height/2 - centerY;
-		x = centerX; y = centerY;
-		while(x > 0 && y < height) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		err = (center.y - 0.8*radius * u.y)* this.warp + height/2 - leftY;
+		x = leftX; y = leftY;
+		while(x > minX && y < maxY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err += dy/dx;
+			err -= dy/dx;
 			if(err > 0.5) {
 				y++;
 				err -= 1;
@@ -241,15 +253,15 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 		}
 
 	} else {
-		var err = centerX - (center.x * this.warp + width/2);
+		var err = leftX - ( (center.x - 0.8*radius * u.x)* this.warp + width/2 );
 
-		var x = centerX, y = centerY;
-		while(x > 0 && y < height) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		var x = rightX, y = rightY;
+		while(x > minX && y < maxY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err -= dy/dx;
+			err += dy/dx;
 			if(err < - 0.5) {
 				x--;
 				err += 1;
@@ -257,14 +269,14 @@ EdgeDetector.prototype.bresenham = function(center, points) {
 			y++;
 		}
 
-		err = center.x * this.warp + width/2 - centerX;
-		x = centerX; y = centerY;
-		while(x < width && y > 0) {
-			if( this.bitmap.pixels[x][y].equals(new THREE.Color( 0x000000 )) ) {
+		err = (center.x + 0.8*radius * u.x)* this.warp + width/2 - rightX;
+		x = leftX; y = leftY;
+		while(x < maxX && y > minY) {
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
 				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
 				break;
 			}
-			err += dy/dx;
+			err -= dy/dx;
 			if(err > 0.5) {
 				x++;
 				err -= 1;
