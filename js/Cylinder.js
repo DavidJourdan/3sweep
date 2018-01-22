@@ -113,6 +113,7 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 	var h = curPoint.distanceTo( this.centers[this.centers.length - 1] );
 
 	vec = this.frame.w.clone();
+	vec.multiplyScalar(Math.sign(height));
 	this.group[end].position.addVectors(this.centers[this.centers.length - 1], vec.multiplyScalar( h/2 ));
 	if(h > 5) {
 		
@@ -126,13 +127,17 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 		var radiusBottom = this.group[end].geometry.parameters.radiusTop;
 		var radiusTop = edges.radius;
 
-		this.group[end].geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, h, 32);
-
 		var material = this.group[end].material;
 		var q = new THREE.Quaternion();
 		q.setFromUnitVectors(new THREE.Vector3(0,1,0), this.frame.w);
 
+		if(height > 0)
+			this.group[end].geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, h, 32);
+		else 
+			this.group[end].geometry = new THREE.CylinderGeometry(radiusBottom, radiusTop, h, 32);
+
 		var mesh = new THREE.Mesh( new THREE.CylinderGeometry( radiusTop, radiusTop, 0.1, 32 ), material );
+
 		mesh.applyQuaternion(q);
 		mesh.position.copy(curPoint);
 		this.scene.add(mesh);
