@@ -68,26 +68,27 @@
 				document.body.insertBefore( renderer.domElement, image );
 
 				// set up camera
-				camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 1000);
+				camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 5000);
 
 				// GUI
 				parameters = {
 					straightAxis: true,
 					constantRadius: false,
-					tube: function() {
-						var curve = new TubeCurve(points);
-						var geometry = new THREE.TubeGeometry( curve, points.length, radius, 30, false );
-						var material = new THREE.MeshStandardMaterial( {color: 0x0077ff});
-						var mesh = new THREE.Mesh( geometry, material );
-						scene.add( mesh );
-					},
-					shape: 'Cylinder'
+					shape: 'Cube',
+					image: 'djeser'
 				}
 				var gui = new dat.GUI();
 				gui.add(parameters, 'straightAxis').name("Straight Axis");
 				gui.add(parameters, 'constantRadius').name("Constant Radius");
-				gui.add(parameters, 'tube').name("Tube");
 				gui.add(parameters, 'shape', ['Cylinder', 'Cube', 'Sphere']).name('Shape');
+				gui.add(parameters, 'image', {'Bottle': 'bottle', 'Vase': 'vase', 'Djeser': 'djeser'}).name('Image')
+					.onChange(function(newImg) {
+						scene.remove(edgeDetector.image);
+						edgeDetector = new EdgeDetector('images/' + newImg, scene);
+						if(shape !== undefined) scene.remove(shape.mesh);
+						nbSelecPts = 0;
+					});
+
 
 				// light
 				var ambientLight = new THREE.AmbientLight( 0x555555 );
@@ -111,7 +112,7 @@
 				renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
 				renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
 
-				edgeDetector = new EdgeDetector('images/bottle', scene);
+				edgeDetector = new EdgeDetector('images/djeser', scene);
 			}
 
 			function render() {
@@ -139,9 +140,11 @@
 				switch(nbSelecPts) {
 					case 0:
 					if(parameters.shape === "Cylinder") 
-						shape = new Cylinder(x, y, parameters, edgeDetector);
+						shape = new Cylinder(parameters, edgeDetector);
 					else if(parameters.shape === "Cube") 
-						shape = new Parallelepiped(x, y, parameters, edgeDetector);
+						shape = new Parallelepiped(parameters, edgeDetector);
+
+					shape.addPoint(x,y);
 					scene.add(shape.line);
 					nbSelecPts++;
 					break;

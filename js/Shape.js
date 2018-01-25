@@ -1,5 +1,7 @@
-function Shape(x, y, parameters, edgeDetector) {
+function Shape(parameters, edgeDetector) {
 	this.scene = edgeDetector.scene;
+
+	this.group = [];
 
 	this.frame = {
 		u: new THREE.Vector3(), 
@@ -15,12 +17,6 @@ function Shape(x, y, parameters, edgeDetector) {
 
 	this.last = new THREE.Vector3(); //last specified point on the profile
 	this.center = new THREE.Vector3(); //center of the profile
-
-	var geom = new THREE.Geometry();
-	geom.vertices.push(new THREE.Vector3(x, y, -500));
-	geom.vertices.push(new THREE.Vector3(x, y, -500));
-	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
-		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
 
 	this.edgeDetector = edgeDetector;
 }

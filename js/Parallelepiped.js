@@ -1,6 +1,5 @@
-function Parallelepiped(x, y, parameters, edgeDetector) {
-	Shape.call(this, x, y, parameters, edgeDetector);
-	this.line.geometry.vertices.push(new THREE.Vector3(x, y, -500));
+function Parallelepiped(parameters, edgeDetector) {
+	Shape.call(this, parameters, edgeDetector);
 }
 
 Parallelepiped.prototype = Object.create(Shape.prototype);
@@ -110,4 +109,14 @@ Parallelepiped.prototype.sweepVarying = function(x,y) {
 Parallelepiped.prototype.trace = function(x,y) {
 	this.line.geometry.vertices[2] = new THREE.Vector3(x,y,-500);
 	this.line.geometry.verticesNeedUpdate = true;
+};
+
+Parallelepiped.prototype.addPoint = function(x,y) {
+	var geom = new THREE.Geometry();
+	geom.vertices.push(new THREE.Vector3(x, y, -500));
+	geom.vertices.push(new THREE.Vector3(x, y, -500));
+	geom.vertices.push(new THREE.Vector3(x, y, -500));
+
+	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
+		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
 };

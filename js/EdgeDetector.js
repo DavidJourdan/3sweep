@@ -21,9 +21,9 @@ function EdgeDetector(fileName, scene) {
 		}
 	}
 	var material = new THREE.MeshBasicMaterial( { map: texture } );
-	var image = new THREE.Mesh(this.plane, material);
-	image.position.z = -999;
-	scene.add(image);
+	this.image = new THREE.Mesh(this.plane, material);
+	this.image.position.z = -4999;
+	scene.add(this.image);
 
 	this.loadBmp();
 }
@@ -287,5 +287,7 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 	}
 
 	result.radius = result.left.distanceTo(result.right) / 2;
+
+	if(result.radius === undefined) result.radius = radius;
 	return result;
 }

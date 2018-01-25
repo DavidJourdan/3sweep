@@ -1,12 +1,11 @@
-function Cylinder(x, y, parameters, edgeDetector) {
-	Shape.call(this, x, y, parameters, edgeDetector);
+function Cylinder(parameters, edgeDetector) {
+	Shape.call(this, parameters, edgeDetector);
 	this.mesh.rotation.x = Math.PI/2;
 	this.circle = new THREE.Line(new THREE.Geometry(), this.line.material);
 	for (var i = 0; i < 41; i++) {
 		this.circle.geometry.vertices
 			.push(new THREE.Vector3(Math.cos(i*Math.PI/20), Math.sin(i*Math.PI/20), 0));
 	}
-	this.group = [];
 }
 
 Cylinder.prototype = Object.create(Shape.prototype);
@@ -179,4 +178,13 @@ Cylinder.prototype.trace = function(x,y) {
 	if(pos.length() < radius) {
 		this.circle.scale.y = pos.y/Math.sqrt(1 - pos.x**2/radius**2);
 	}
+};
+
+Cylinder.prototype.addPoint = function(x,y) {
+	var geom = new THREE.Geometry();
+	geom.vertices.push(new THREE.Vector3(x, y, -500));
+	geom.vertices.push(new THREE.Vector3(x, y, -500));
+
+	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
+		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
 };
