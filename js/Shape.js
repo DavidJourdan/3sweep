@@ -1,8 +1,6 @@
 function Shape(parameters, edgeDetector) {
 	this.scene = edgeDetector.scene;
 
-	this.group = [];
-
 	this.frame = {
 		u: new THREE.Vector3(), 
 		v: new THREE.Vector3(), 

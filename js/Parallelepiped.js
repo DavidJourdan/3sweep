@@ -95,31 +95,51 @@ Parallelepiped.prototype.sweepConstant = function(x,y) {
 
 Parallelepiped.prototype.sweepVarying = function(x,y) {
 	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
-	var height = Math.abs( this.frame.w.dot(direction) );
+	var height = this.frame.w.dot(direction);
 	direction.normalize();
 
 	height /= Math.sqrt(1 - this.frame.w.z**2);
 	var vec = this.frame.w.clone();
 
-	this.mesh.position.addVectors(this.center, vec.multiplyScalar(height/2));
+	var curPoint = new THREE.Vector3();
+	curPoint.addVectors(this.center, vec.multiplyScalar(height));
 
-	var q = new THREE.Quaternion();
-	var w = new THREE.Vector3();
-	w.crossVectors(this.frame.u,this.frame.v);
-	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
-		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
-		w.normalize();
-		q.setFromUnitVectors(w, direction);
-		this.mesh.applyQuaternion(q);
-		this.frame.w.applyQuaternion(q);
-	}
+	var centers = this.centers.geometry.vertices;
+	var h = curPoint.distanceTo( centers[centers.length - 1] );
 
-	if(height - this.mesh.geometry.parameters.depth > 5) {
+	this.mesh.position.addVectors(this.center, vec.multiplyScalar(1/2));
+	if(h > 5) {
 
+		var leftEnd = this.leftEdges.geometry.vertices.length - 1;
+		var rightEnd = this.rightEdges.geometry.vertices.length - 1;
+		var edges = this.edgeDetector.bresenham(curPoint, this.dist);
+
+		if(edges.left !== undefined) this.leftEdges.geometry.vertices.push( edges.left );
+		if(edges.right !== undefined) this.rightEdges.geometry.vertices.push( edges.right );
+
+		if(edges.left !== undefined && edges.right !== undefined) {
+			var middle = new THREE.Vector3();
+			middle.addVectors(edges.left, edges.right).divideScalar(2);
+			centers.push(middle);
+			if(Math.abs(height) / this.mesh.geometry.parameters.width > 5) { // means that the box is thin, so the error due to the orientation is big
+				var dir = new THREE.Vector3();
+				dir.subVectors(middle, centers[0]);
+				dir.z = 0;
+				dir.normalize();
+
+				var w = height > 0 ? new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0) : new THREE.Vector3(-this.frame.w.x, -this.frame.w.y, 0);
+				w.normalize();
+				var q = new THREE.Quaternion();
+				q.setFromUnitVectors(w, dir);	
+				this.mesh.applyQuaternion(q);
+				this.frame.w.applyQuaternion(q);
+			}
+		}
+		this.dist = edges.radius;
 	}
 
 	var l = this.mesh.geometry.parameters.width;
-	this.mesh.geometry = new THREE.BoxGeometry( l, l, height );
+	this.mesh.geometry = new THREE.BoxGeometry( l, l, Math.abs(height) );
 };
 
 Parallelepiped.prototype.trace = function(x,y) {

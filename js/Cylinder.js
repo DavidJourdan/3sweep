@@ -1,11 +1,14 @@
 function Cylinder(parameters, edgeDetector) {
 	Shape.call(this, parameters, edgeDetector);
 	this.mesh.rotation.x = Math.PI/2;
-	this.circle = new THREE.Line(new THREE.Geometry(), this.line.material);
+	this.circle = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial(
+		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
 	for (var i = 0; i < 41; i++) {
 		this.circle.geometry.vertices
 			.push(new THREE.Vector3(Math.cos(i*Math.PI/20), Math.sin(i*Math.PI/20), 0));
 	}
+	this.group = new THREE.Group();
+	this.scene.add(this.group);
 }
 
 Cylinder.prototype = Object.create(Shape.prototype);
@@ -68,7 +71,7 @@ Cylinder.prototype.align = function(x,y) {
 
 		this.last.z += Math.sqrt(distDiff);
 
-		this.group.push(this.mesh);
+		this.group.add(this.mesh);
 
 		return this.mesh;
 	}
@@ -108,50 +111,70 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 
 	height /= Math.sqrt(1 - this.frame.w.z**2);
 	var vec = this.frame.w.clone();
-	var end = this.group.length - 1;
 
 	var curPoint = new THREE.Vector3();
-	var vec = this.frame.w.clone();
 	curPoint.addVectors(this.center, vec.multiplyScalar(height));
 
 	var h = curPoint.distanceTo( this.centers[this.centers.length - 1] );
 
 	vec = this.frame.w.clone();
 	vec.multiplyScalar(Math.sign(height));
-	this.group[end].position.addVectors(this.centers[this.centers.length - 1], vec.multiplyScalar( h/2 ));
+	this.mesh.position.addVectors(this.centers[this.centers.length - 1], vec.multiplyScalar( h/2 ));
 	if(h > 5) {
 		
-		this.centers.push(curPoint);
-
 		var edges = this.edgeDetector.bresenham(curPoint, this.mesh.geometry.parameters.radiusTop);
 		
-
-		var radiusBottom = this.group[end].geometry.parameters.radiusTop;
 		if(edges.left !== undefined) this.leftEdges.geometry.vertices.push( edges.left );
 		if(edges.right !== undefined) this.rightEdges.geometry.vertices.push( edges.right );
+		
+		var radiusBottom = this.mesh.geometry.parameters.radiusTop;
 		var radiusTop = edges.radius;
 
-		var material = this.group[end].material;
+		var material = this.mesh.material;
 		var q = new THREE.Quaternion();
 		q.setFromUnitVectors(new THREE.Vector3(0,1,0), this.frame.w);
 
 		if(height > 0)
-			this.group[end].geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, h, 32);
+			this.mesh.geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, h, 32);
 		else 
-			this.group[end].geometry = new THREE.CylinderGeometry(radiusBottom, radiusTop, h, 32);
+			this.mesh.geometry = new THREE.CylinderGeometry(radiusBottom, radiusTop, h, 32);
 
 		var mesh = new THREE.Mesh( new THREE.CylinderGeometry( radiusTop, radiusTop, 0.1, 32 ), material );
 
 		mesh.applyQuaternion(q);
-		mesh.position.copy(curPoint);
-		this.scene.add(mesh);
 
-		this.group.push( mesh );
+		this.centers.push(curPoint);
+		mesh.position.copy(curPoint);
+
+		this.mesh = mesh;
+		this.group.add( mesh );
+
+
+		if(edges.left !== undefined && edges.right !== undefined) {
+			var middle = new THREE.Vector3();
+			middle.addVectors(edges.left, edges.right).divideScalar(2);
+			if(Math.abs(height) / this.mesh.geometry.parameters.radiusTop > 5) { // means that the box is thin, so the error due to the orientation is big
+
+				var dir = new THREE.Vector3();
+				dir.subVectors(middle, this.centers[0]);
+				dir.z = 0;
+				dir.normalize();
+
+				var w = height > 0 ? new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0) : new THREE.Vector3(-this.frame.w.x, -this.frame.w.y, 0);
+				w.normalize();
+				var q = new THREE.Quaternion();
+				q.setFromUnitVectors(w, dir);
+
+				this.group.applyQuaternion(q);
+
+				this.frame.w.applyQuaternion(q);
+			}
+		}
 
 	} else {
 
-		var radiusBottom = this.group[end].geometry.parameters.radiusBottom;
-		this.group[end].geometry = new THREE.CylinderGeometry( radiusBottom, radiusBottom, h, 32 );
+		var radiusBottom = this.mesh.geometry.parameters.radiusBottom;
+		this.mesh.geometry = new THREE.CylinderGeometry( radiusBottom, radiusBottom, h, 32 );
 
 	}
 
