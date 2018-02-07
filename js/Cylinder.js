@@ -20,6 +20,10 @@ Cylinder.prototype.align = function(x,y) {
 		this.rightEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x555555, depthTest: false, depthWrite: false, size: 3 } ));
 		this.centers = [];
 		this.centers.push(this.center);
+
+		this.edgeDetector.dx = this.line.geometry.vertices[1].x - this.line.geometry.vertices[0].x;
+		this.edgeDetector.dy = this.line.geometry.vertices[1].y - this.line.geometry.vertices[0].y;
+
 	}
 
 
@@ -83,7 +87,8 @@ Cylinder.prototype.sweepConstant = function(x,y) {
 	var q = new THREE.Quaternion();
 	var w = new THREE.Vector3();
 	w.crossVectors(this.frame.u, this.frame.v);
-	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
+	w.z = 0;
+	if(w.dot(direction) > 0.98 || w.dot(direction) < -0.98) {
 		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
 		w.normalize();
 		q.setFromUnitVectors(w, direction);
@@ -118,14 +123,12 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 		
 		this.centers.push(curPoint);
 
-		var dx = this.line.geometry.vertices[1].x - this.line.geometry.vertices[0].x;
-		var dy = this.line.geometry.vertices[1].y - this.line.geometry.vertices[0].y;
-		var edges = this.edgeDetector.bresenham(curPoint, this.group[end].geometry.parameters.radiusTop, dx, dy);
+		var edges = this.edgeDetector.bresenham(curPoint, this.mesh.geometry.parameters.radiusTop);
 		
-		this.leftEdges.geometry.vertices.push( edges.left );
-		this.rightEdges.geometry.vertices.push( edges.right );
 
 		var radiusBottom = this.group[end].geometry.parameters.radiusTop;
+		if(edges.left !== undefined) this.leftEdges.geometry.vertices.push( edges.left );
+		if(edges.right !== undefined) this.rightEdges.geometry.vertices.push( edges.right );
 		var radiusTop = edges.radius;
 
 		var material = this.group[end].material;
@@ -187,4 +190,9 @@ Cylinder.prototype.addPoint = function(x,y) {
 
 	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
 		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
+};
+
+Cylinder.prototype.finalize = function() {
+	this.scene.add(this.leftEdges);
+	this.scene.add(this.rightEdges);
 };

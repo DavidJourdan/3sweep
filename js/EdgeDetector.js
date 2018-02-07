@@ -62,7 +62,7 @@ EdgeDetector.prototype.loadBmp = function() {
 		var height = bitmap.infoheader.biHeight;
 		var stride = Math.floor((bitmap.infoheader.biBitCount * width + 31) / 32) * 4;
 
-		bitmap.pixels = new Array(height);
+		bitmap.pixels = new Array(width);
 
 		for (var x = 0; x < width; x++) {
 			bitmap.pixels[x] = new Array(height);
@@ -81,36 +81,35 @@ EdgeDetector.prototype.loadBmp = function() {
 	xhr.send();
 };
 
-EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
+EdgeDetector.prototype.bresenham = function(center, radius) {
 	var width = this.bitmap.infoheader.biWidth;
 	var height = this.bitmap.infoheader.biHeight;
 
 	var centerX = Math.round(center.x * this.warp + width/2);
 	var centerY = Math.round(center.y * this.warp + height/2);
 
-	var u = new THREE.Vector3(dx, dy, 0).normalize();
+	var u = new THREE.Vector3(Math.abs(this.dx), Math.abs(this.dy), 0).normalize();
 
-	var leftX = Math.round((center.x - 0.8*radius * u.x)* this.warp + width/2);
-	var leftY = Math.round((center.y - 0.8*radius * u.y)* this.warp + height/2);
+	var leftX = Math.round((center.x - 0.6*radius * u.x)* this.warp + width/2);
+	var leftY = Math.round((center.y - 0.6*radius * u.y)* this.warp + height/2);
+	var rightX = Math.round((center.x + 0.6*radius * u.x)* this.warp + width/2);
+	var rightY = Math.round((center.y + 0.6*radius * u.y)* this.warp + height/2); 
 
-	var rightX = Math.round((center.x + 0.8*radius * u.x)* this.warp + width/2);
-	var rightY = Math.round((center.y + 0.8*radius * u.y)* this.warp + height/2);
+	var minX = Math.max(0, Math.round((center.x - 1.4*radius * u.x)* this.warp + width/2));
+	var minY = Math.max(0, Math.round((center.y - 1.4*radius * u.y)* this.warp + height/2));
 
-	var minX = Math.min(0, (center.x - 1.2*radius * u.x)* this.warp + width/2);
-	var minY =  Math.min(0, (center.y - 1.2*radius * u.y)* this.warp + height/2);
-
-	var maxX = Math.max(width, (center.x + 1.2*radius * u.x)* this.warp + width/2);
-	var maxY = Math.max(height, (center.y + 1.2*radius * u.y)* this.warp + height/2);
+	var maxX = Math.min(width, Math.round((center.x + 1.4*radius * u.x)* this.warp + width/2));
+	var maxY = Math.min(height, Math.round((center.y + 1.4*radius * u.y)* this.warp + height/2));
 
 	var result = {};
 
-	if(dx == 0) {
+	if(this.dx == 0) {
 		var x = rightX;
 		var y = rightY;
 
 		while(y < maxY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
 			y++;
@@ -118,24 +117,22 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 
 		y = leftY;
 		while(y > minY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
 			y--;
 		}
 
-		result.radius = result.left.distanceTo(result.right) / 2;
-		return result;
 	}
 
-	if(dy == 0) {
+	if(this.dy == 0) {
 		var x = rightX;
 		var y = rightY;
 
 		while(x < maxX) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
 			x++;
@@ -143,28 +140,26 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 
 		x = leftX;
 		while(x > minX) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
 			x--;
 		}
 
-		result.radius = result.left.distanceTo(result.right) / 2;
-		return result;
 	}
 
-	if(dy/dx > 1) {
-		var err = (center.x + 0.8*radius * u.x)* this.warp + width/2 - rightX;
+	if(this.dy/this.dx > 1) {
+		var err = (center.x + 0.6*radius * u.x)* this.warp + width/2 - rightX;
 
 		var x = rightX, y = rightY;
 
 		while(x < maxX && y < maxY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err += dx/dy;
+			err += this.dx/this.dy;
 			if(err >= 0.5) {
 				x++;
 				err -= 1;
@@ -172,31 +167,31 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 			y++;
 		}
 
-		err = leftX - ( (center.x - 0.8*radius * u.x)* this.warp + width/2 );
+		err = leftX - ( (center.x - 0.6*radius * u.x)* this.warp + width/2 );
 
 		x = leftX; y = leftY;
 		while(x > minX && y > minY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err -= dx/dy;
+			err -= this.dx/this.dy;
 			if(err < - 0.5) {
 				x--;
 				err += 1;
 			}
 			y--;
 		}
-	} else if(dy/dx > 0) {
-		var err = (center.y + 0.8*radius * u.y)* this.warp + height/2 - rightY;
+	} else if(this.dy/this.dx > 0) {
+		var err = (center.y + 0.6*radius * u.y)* this.warp + height/2 - rightY;
 
 		var x = rightX, y = rightY;
 		while(x < maxX && y < maxY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err += dy/dx;
+			err += this.dy/this.dx;
 			if(err >= 0.5) {
 				y++;
 				err -= 1;
@@ -204,15 +199,15 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 			x++;
 		}
 
-		err = leftY - ( (center.y - 0.8*radius * u.y)* this.warp + height/2 );
+		err = leftY - ( (center.y - 0.6*radius * u.y)* this.warp + height/2 );
 
 		x = leftX; y = leftY;
 		while(x > minX && y > minY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err -= dy/dx;
+			err -= this.dy/this.dx;
 			if(err < - 0.5) {
 				y--;
 				err += 1;
@@ -220,16 +215,16 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 			x--;
 		}
 
-	} else if(dy/dx > - 1) {
-		var err = rightY - ( (center.y + 0.8*radius * u.y)* this.warp + height/2 );
+	} else if(this.dy/this.dx > - 1) {
+		var err = rightY - ( (center.y + 0.6*radius * u.y)* this.warp + height/2 );
 
 		var x = rightX, y = rightY;
 		while(x < maxX && y > minY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err += dy/dx;
+			err += this.dy/this.dx;
 			if(err < - 0.5) {
 				y--;
 				err += 1;
@@ -237,14 +232,14 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 			x++;
 		}
 
-		err = (center.y - 0.8*radius * u.y)* this.warp + height/2 - leftY;
+		err = (center.y - 0.6*radius * u.y)* this.warp + height/2 - leftY;
 		x = leftX; y = leftY;
 		while(x > minX && y < maxY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err -= dy/dx;
+			err -= this.dy/this.dx;
 			if(err > 0.5) {
 				y++;
 				err -= 1;
@@ -253,15 +248,15 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 		}
 
 	} else {
-		var err = leftX - ( (center.x - 0.8*radius * u.x)* this.warp + width/2 );
+		var err = leftX - ( (center.x - 0.6*radius * u.x)* this.warp + width/2 );
 
 		var x = rightX, y = rightY;
 		while(x > minX && y < maxY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.right = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.right = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err += dy/dx;
+			err += this.dy/this.dx;
 			if(err < - 0.5) {
 				x--;
 				err += 1;
@@ -269,14 +264,14 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 			y++;
 		}
 
-		err = (center.x + 0.8*radius * u.x)* this.warp + width/2 - rightX;
+		err = (center.x + 0.6*radius * u.x)* this.warp + width/2 - rightX;
 		x = leftX; y = leftY;
 		while(x < maxX && y > minY) {
-			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.2 ) {
-				result.left = new THREE.Vector3( (x - height/2)/this.warp, (y - width/2)/this.warp, -500);
+			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
+				result.left = new THREE.Vector3( (x - width/2)/this.warp, (y - height/2)/this.warp, center.z);
 				break;
 			}
-			err -= dy/dx;
+			err -= this.dy/this.dx;
 			if(err > 0.5) {
 				x++;
 				err -= 1;
@@ -286,8 +281,15 @@ EdgeDetector.prototype.bresenham = function(center, radius, dx, dy) {
 
 	}
 
-	result.radius = result.left.distanceTo(result.right) / 2;
+	if(result.left === undefined && result.right === undefined) 
+		result.radius = radius;
+	else if(result.left === undefined)
+		result.radius = center.distanceTo(result.right);
+	else if(result.right === undefined)
+		result.radius = center.distanceTo(result.left);
+	else result.radius = result.left.distanceTo(result.right) / 2;
 
-	if(result.radius === undefined) result.radius = radius;
+	result.center = new THREE.Vector3( (centerX - width/2)/this.warp, (centerY - height/2)/this.warp, center.z);
+
 	return result;
 }

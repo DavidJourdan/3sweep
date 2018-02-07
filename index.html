@@ -75,13 +75,13 @@
 					straightAxis: true,
 					constantRadius: false,
 					shape: 'Cube',
-					image: 'djeser'
+					image: 'obelisque'
 				}
 				var gui = new dat.GUI();
 				gui.add(parameters, 'straightAxis').name("Straight Axis");
 				gui.add(parameters, 'constantRadius').name("Constant Radius");
 				gui.add(parameters, 'shape', ['Cylinder', 'Cube', 'Sphere']).name('Shape');
-				gui.add(parameters, 'image', {'Bottle': 'bottle', 'Vase': 'vase', 'Djeser': 'djeser'}).name('Image')
+				gui.add(parameters, 'image', {'Bottle': 'bottle', 'Vase': 'vase', 'Bent Pyramid': 'bent-pyramid', 'Obelisk': 'obelisque'}).name('Image')
 					.onChange(function(newImg) {
 						scene.remove(edgeDetector.image);
 						edgeDetector = new EdgeDetector('images/' + newImg, scene);
@@ -112,7 +112,7 @@
 				renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
 				renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
 
-				edgeDetector = new EdgeDetector('images/djeser', scene);
+				edgeDetector = new EdgeDetector('images/obelisque', scene);
 			}
 
 			function render() {
@@ -161,8 +161,7 @@
 					break;
 
 					case 3:
-					scene.add(shape.leftEdges);
-					scene.add(shape.rightEdges);
+					shape.finalize();
 					nbSelecPts = 0;
 					break;
 				}

@@ -8,11 +8,26 @@ Parallelepiped.prototype.constructor = Parallelepiped;
 Parallelepiped.prototype.align = function(x,y) {
 	this.scene.remove(this.line);
 
+
 	var points = [];
 	points.push(this.line.geometry.vertices[0]);
 	points.push(this.line.geometry.vertices[1]);
 	points.push(new THREE.Vector3(x,y,-500));
 	
+	if(!this.constantRadius) {
+		this.leftEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x000000, depthTest: false, depthWrite: false, size: 3 } ));
+		this.rightEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0xff7700, depthTest: false, depthWrite: false, size: 3 } ));
+		this.centers = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x555555, depthTest: false, depthWrite: false, size: 3 } ));
+		this.centers.geometry.vertices.push(this.center);
+		this.leftEdges.geometry.vertices.push(this.line.geometry.vertices[0]);
+		this.rightEdges.geometry.vertices.push(this.line.geometry.vertices[2]);
+
+		this.edgeDetector.dx = points[2].x - points[0].x;
+		this.edgeDetector.dy = points[2].y - points[0].y;
+
+		this.dist = points[0].distanceTo(points[2]);
+	}
+
 	this.frame.u.subVectors(points[0], points[1]);
 	this.frame.v.subVectors(points[2], points[1]);
 
@@ -20,7 +35,7 @@ Parallelepiped.prototype.align = function(x,y) {
 	var v_squared = this.frame.v.length()**2;
 	var delta = (u_squared - v_squared)**2 + 4*this.frame.u.dot(this.frame.v)**2; //discriminant of the quadratic equation
 
-	var L = ( u_squared + v_squared + Math.sqrt(delta) ) / 2.; //area (size squared) of the square
+	var L = ( u_squared + v_squared + Math.sqrt(delta) ) / 2.; // area (side squared) of the square
 
 	this.frame.u.z = - Math.sqrt( L - u_squared );
 	this.frame.v.z = - Math.sqrt( L - v_squared );
@@ -66,7 +81,8 @@ Parallelepiped.prototype.sweepConstant = function(x,y) {
 	var q = new THREE.Quaternion();
 	var w = new THREE.Vector3();
 	w.crossVectors(this.frame.u,this.frame.v);
-	if(w.dot(direction) > 0.95 || w.dot(direction) < -0.95) {
+	w.z = 0;
+	if(w.dot(direction) > 0.999 || w.dot(direction) < -0.999) {
 		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
 		w.normalize();
 		q.setFromUnitVectors(w, direction);
@@ -119,4 +135,10 @@ Parallelepiped.prototype.addPoint = function(x,y) {
 
 	this.line = new THREE.Line(geom, new THREE.LineBasicMaterial(
 		{color: 0x0077ff, linewidth: 3, depthTest: false, depthWrite: false}));
+};
+
+Parallelepiped.prototype.finalize = function() {
+	this.scene.add(this.leftEdges);
+	this.scene.add(this.rightEdges);
+	this.scene.add(this.centers);
 };
