@@ -19,8 +19,6 @@ Cylinder.prototype.align = function(x,y) {
 
 
 	if(!this.constantRadius) {
-		this.leftEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x000000, depthTest: false, depthWrite: false, size: 3 } ));
-		this.rightEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x555555, depthTest: false, depthWrite: false, size: 3 } ));
 		this.centers = [];
 		this.centers.push(this.center);
 
@@ -124,9 +122,6 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 		
 		var edges = this.edgeDetector.bresenham(curPoint, this.mesh.geometry.parameters.radiusTop);
 		
-		if(edges.left !== undefined) this.leftEdges.geometry.vertices.push( edges.left );
-		if(edges.right !== undefined) this.rightEdges.geometry.vertices.push( edges.right );
-		
 		var radiusBottom = this.mesh.geometry.parameters.radiusTop;
 		var radiusTop = edges.radius;
 
@@ -216,6 +211,50 @@ Cylinder.prototype.addPoint = function(x,y) {
 };
 
 Cylinder.prototype.finalize = function() {
-	this.scene.add(this.leftEdges);
-	this.scene.add(this.rightEdges);
+	// var vertices = [];
+	// var faces = [];
+
+	// var i = 1;
+	// var height = - this.group[i].geometry.parameters.height / 2;
+	// var facesCount = 0
+
+	// for (; i < this.group.length - 1; i++) {
+	// 	this.scene.remove(this.group[i]);
+
+	// 	var rTop = this.group[i].geometry.parameters.radiusTop;
+	// 	var rBottom = this.group[i].geometry.parameters.radiusBottom;
+	// 	var h = this.group[i].geometry.parameters.height;
+		
+	// 	height += h/2;
+	// 	facesCount += this.group[i].geometry.parameters.radialSegments;
+
+	// 	var geometry = new THREE.CylinderGeometry(rTop, rBottom, h, 32, 1, true);
+
+	// 	for (var j = geometry.vertices.length - 1; j > geometry.vertices.length / 2; j--) {
+	// 		vertices.push(geometry.vertices[j].x);
+	// 		vertices.push(geometry.vertices[j].y - height);
+	// 		vertices.push(geometry.vertices[j].z);
+	// 	}
+
+	// 	for (var k = 0; k < geometry.faces.length; k++) {
+	// 		faces.push(geometry.faces[k].a + facesCount);
+	// 		faces.push(geometry.faces[k].b + facesCount);
+	// 		faces.push(geometry.faces[k].c + facesCount);
+	// 	}
+	// 	height += h/2;
+	// }
+
+	// var geometry = new THREE.BufferGeometry();
+	// geometry.addAttribute('position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+	// geometry.setIndex(faces);
+	// geometry.computeVertexNormals();
+
+	// this.mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({color: 0x0077ff}));
+	// this.mesh.position = this.group[1].position;
+
+	// var q = new THREE.Quaternion();
+	// q.setFromUnitVectors(new THREE.Vector3(0,1,0), this.frame.w);
+
+	// this.mesh.applyQuaternion(q);
+	// this.scene.add(this.mesh);
 };

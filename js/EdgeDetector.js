@@ -90,16 +90,16 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 
 	var u = new THREE.Vector3(Math.abs(this.dx), Math.abs(this.dy), 0).normalize();
 
-	var leftX = Math.round((center.x - 0.6*radius * u.x)* this.warp + width/2);
-	var leftY = Math.round((center.y - 0.6*radius * u.y)* this.warp + height/2);
-	var rightX = Math.round((center.x + 0.6*radius * u.x)* this.warp + width/2);
-	var rightY = Math.round((center.y + 0.6*radius * u.y)* this.warp + height/2); 
+	var leftX = Math.round((center.x - 0.1*radius * u.x)* this.warp + width/2);
+	var leftY = Math.round((center.y - 0.1*radius * u.y)* this.warp + height/2);
+	var rightX = Math.round((center.x + 0.1*radius * u.x)* this.warp + width/2);
+	var rightY = Math.round((center.y + 0.1*radius * u.y)* this.warp + height/2); 
 
-	var minX = Math.max(0, Math.round((center.x - 1.4*radius * u.x)* this.warp + width/2));
-	var minY = Math.max(0, Math.round((center.y - 1.4*radius * u.y)* this.warp + height/2));
+	var minX = Math.min(0, Math.round((center.x - 2.0*radius * u.x)* this.warp + width/2));
+	var minY = Math.min(0, Math.round((center.y - 2.0*radius * u.y)* this.warp + height/2));
 
-	var maxX = Math.min(width, Math.round((center.x + 1.4*radius * u.x)* this.warp + width/2));
-	var maxY = Math.min(height, Math.round((center.y + 1.4*radius * u.y)* this.warp + height/2));
+	var maxX = Math.max(width, Math.round((center.x + 2.0*radius * u.x)* this.warp + width/2));
+	var maxY = Math.max(height, Math.round((center.y + 2.0*radius * u.y)* this.warp + height/2));
 
 	var result = {};
 
@@ -150,7 +150,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 	}
 
 	if(this.dy/this.dx > 1) {
-		var err = (center.x + 0.6*radius * u.x)* this.warp + width/2 - rightX;
+		var err = (center.x + 0.1*radius * u.x)* this.warp + width/2 - rightX;
 
 		var x = rightX, y = rightY;
 
@@ -167,7 +167,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 			y++;
 		}
 
-		err = leftX - ( (center.x - 0.6*radius * u.x)* this.warp + width/2 );
+		err = leftX - ( (center.x - 0.1*radius * u.x)* this.warp + width/2 );
 
 		x = leftX; y = leftY;
 		while(x > minX && y > minY) {
@@ -183,7 +183,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 			y--;
 		}
 	} else if(this.dy/this.dx > 0) {
-		var err = (center.y + 0.6*radius * u.y)* this.warp + height/2 - rightY;
+		var err = (center.y + 0.1*radius * u.y)* this.warp + height/2 - rightY;
 
 		var x = rightX, y = rightY;
 		while(x < maxX && y < maxY) {
@@ -199,7 +199,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 			x++;
 		}
 
-		err = leftY - ( (center.y - 0.6*radius * u.y)* this.warp + height/2 );
+		err = leftY - ( (center.y - 0.1*radius * u.y)* this.warp + height/2 );
 
 		x = leftX; y = leftY;
 		while(x > minX && y > minY) {
@@ -216,7 +216,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 		}
 
 	} else if(this.dy/this.dx > - 1) {
-		var err = rightY - ( (center.y + 0.6*radius * u.y)* this.warp + height/2 );
+		var err = rightY - ( (center.y + 0.1*radius * u.y)* this.warp + height/2 );
 
 		var x = rightX, y = rightY;
 		while(x < maxX && y > minY) {
@@ -232,7 +232,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 			x++;
 		}
 
-		err = (center.y - 0.6*radius * u.y)* this.warp + height/2 - leftY;
+		err = (center.y - 0.1*radius * u.y)* this.warp + height/2 - leftY;
 		x = leftX; y = leftY;
 		while(x > minX && y < maxY) {
 			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
@@ -248,7 +248,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 		}
 
 	} else {
-		var err = leftX - ( (center.x - 0.6*radius * u.x)* this.warp + width/2 );
+		var err = leftX - ( (center.x - 0.1*radius * u.x)* this.warp + width/2 );
 
 		var x = rightX, y = rightY;
 		while(x > minX && y < maxY) {
@@ -264,7 +264,7 @@ EdgeDetector.prototype.bresenham = function(center, radius) {
 			y++;
 		}
 
-		err = (center.x + 0.6*radius * u.x)* this.warp + width/2 - rightX;
+		err = (center.x + 0.1*radius * u.x)* this.warp + width/2 - rightX;
 		x = leftX; y = leftY;
 		while(x < maxX && y > minY) {
 			if( this.bitmap.pixels[x][y].r + this.bitmap.pixels[x][y].g + this.bitmap.pixels[x][y].b < 0.4 ) {
