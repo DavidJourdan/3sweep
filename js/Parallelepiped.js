@@ -8,25 +8,15 @@ Parallelepiped.prototype.constructor = Parallelepiped;
 Parallelepiped.prototype.align = function(x,y) {
 	this.scene.remove(this.line);
 
-
 	var points = [];
 	points.push(this.line.geometry.vertices[0]);
 	points.push(this.line.geometry.vertices[1]);
 	points.push(new THREE.Vector3(x,y,-500));
 	
-	if(!this.constantRadius) {
-		this.leftEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0x000000, depthTest: false, depthWrite: false, size: 3 } ));
-		this.rightEdges = new THREE.Points(new THREE.Geometry(), new THREE.PointsMaterial( { color: 0xff7700, depthTest: false, depthWrite: false, size: 3 } ));
-		this.centers = [];
-		this.centers.push(this.center);
-		this.leftEdges.geometry.vertices.push(this.line.geometry.vertices[0]);
-		this.rightEdges.geometry.vertices.push(this.line.geometry.vertices[2]);
+	this.dist = points[0].distanceTo(points[2]); // diagonal of the part
 
-		this.edgeDetector.dx = points[2].x - points[0].x;
-		this.edgeDetector.dy = points[2].y - points[0].y;
-
-		this.dist = points[0].distanceTo(points[2]);
-	}
+	this.edgeDetector.dx = points[2].x - points[0].x;
+	this.edgeDetector.dy = points[2].y - points[0].y;
 
 	this.frame.u.subVectors(points[0], points[1]);
 	this.frame.v.subVectors(points[2], points[1]);
@@ -42,8 +32,7 @@ Parallelepiped.prototype.align = function(x,y) {
 
 	points[0].z += this.frame.u.z;
 	points[2].z += this.frame.v.z;
-	this.last.copy(points[2]); 
-
+	
 	this.frame.u.normalize();
 	this.frame.v.normalize();
 	this.frame.w.crossVectors(this.frame.u,this.frame.v);
@@ -54,12 +43,8 @@ Parallelepiped.prototype.align = function(x,y) {
 	this.mesh.position.addVectors(points[2], points[0]).divideScalar(2);
 	this.center.copy(this.mesh.position);
 
-	this.normal = new THREE.Vector3();
-	this.normal.subVectors(points[1], this.center).normalize();
-
 	this.diag = new THREE.Vector3();
 	this.diag.subVectors(points[2], points[0]).normalize();
-
 
 	//first, align an edge of the square with frame.u
 	var q = new THREE.Quaternion();
@@ -78,36 +63,55 @@ Parallelepiped.prototype.align = function(x,y) {
 };
 
 Parallelepiped.prototype.sweepConstant = function(x,y) {
-	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
-	var height = this.frame.w.dot(direction);
-	direction.normalize();
+	var direction = new THREE.Vector3(x - this.center.x, y - this.center.y, 0);
+	var height = this.frame.w.dot(direction); // height in the image plane
+	height /= Math.sqrt(1 - this.frame.w.z**2); // correct the value to account for depth
 
-	height /= Math.sqrt(1 - this.frame.w.z**2);
-	var vec = this.frame.w.clone();
+	this.mesh.position.addVectors(this.center, this.frame.w.clone().multiplyScalar(height/2));
 
-	this.mesh.position.addVectors(this.center, vec.multiplyScalar(height/2));
+	var center = this.frame.w.clone().multiplyScalar(height).add(this.center);
+	var edges = this.edgeDetector.bresenham(center, this.dist);
 
-	var q = new THREE.Quaternion();
-	var w = new THREE.Vector3();
-	w.crossVectors(this.frame.u,this.frame.v);
-	w.z = 0;
-	if(w.dot(direction) > 0.999 || w.dot(direction) < -0.999) {
-		w = new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0);
-		w.normalize();
-		q.setFromUnitVectors(w, direction);
-		this.mesh.applyQuaternion(q);
-		this.frame.w.applyQuaternion(q);
-	}
+	this.correctOrientation(edges, height);
+	
 	var l = this.mesh.geometry.parameters.width;
 	this.mesh.geometry = new THREE.BoxGeometry( l, l, Math.abs(height) );
 };
 
+Parallelepiped.prototype.correctOrientation = function(edges, height) {
+	// align the main axis with the midpoint of the edges
+	if(edges.left !== undefined && edges.right !== undefined) {
+		this.dist = edges.left.distanceTo(edges.right);
+		var middle = new THREE.Vector3();
+		middle.addVectors(edges.left, edges.right).divideScalar(2);
+
+		this.centers.push(middle);
+
+		if(Math.abs(height) / this.box.geometry.parameters.width > 2) { // means that the box is thin, so the error due to the orientation is big
+
+			var dir = new THREE.Vector3();
+			dir.subVectors(middle, this.center);
+			dir.z = 0;
+			dir.normalize();
+
+			var w = height > 0 ? new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0) : new THREE.Vector3(-this.frame.w.x, -this.frame.w.y, 0);
+			w.normalize();
+			var q = new THREE.Quaternion();
+			q.setFromUnitVectors(w, dir);
+			this.mesh.applyQuaternion(q);
+			this.frame.w.applyQuaternion(q);
+			this.frame.v.applyQuaternion(q);
+			this.frame.u.applyQuaternion(q);
+		}
+	}
+};
+
 Parallelepiped.prototype.sweepVarying = function(x,y) {
-	var direction = new THREE.Vector3(x - this.last.x, y - this.last.y, 0);
+	var direction = new THREE.Vector3(x - this.center.x, y - this.center.y, 0);
 	var height = this.frame.w.dot(direction);
 	direction.normalize();
 
-	height /= Math.sqrt(1 - this.frame.w.z**2);
+	height /= Math.sqrt(1 - this.frame.w.z**2); // correct height to account for depth
 	var vec = this.frame.w.clone();
 
 	var curPoint = new THREE.Vector3();
@@ -227,10 +231,6 @@ Parallelepiped.prototype.sweepVarying = function(x,y) {
 
 		this.scene.add(this.box);
 
-
-		if(edges.left !== undefined) this.leftEdges.geometry.vertices.push( edges.left );
-		if(edges.right !== undefined) this.rightEdges.geometry.vertices.push( edges.right );
-
 		if(edges.left !== undefined && edges.right !== undefined) {
 			if(Math.abs(height) / this.box.geometry.parameters.width > 2) { // means that the box is thin, so the error due to the orientation is big
 				var middle = new THREE.Vector3();
@@ -269,4 +269,20 @@ Parallelepiped.prototype.addPoint = function(x,y) {
 };
 
 Parallelepiped.prototype.finalize = function() {
+	if(this.straightAxis) {
+		var slope = lin_regression(this.centers);
+
+		var dir = new THREE.Vector3(1, slope, 0);
+		dir.normalize();
+
+		var w = this.frame.w.y < 0 ? new THREE.Vector3(this.frame.w.x, this.frame.w.y, 0) : new THREE.Vector3(-this.frame.w.x, -this.frame.w.y, 0);
+		w.normalize();
+		var q = new THREE.Quaternion();
+		q.setFromUnitVectors(w, dir);
+		this.mesh.applyQuaternion(q);
+	} 
+};
+
+Parallelepiped.prototype.sweepCurved = function(x,y) {
+
 };
