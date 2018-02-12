@@ -13,19 +13,24 @@ function Shape(parameters, edgeDetector) {
 	var material = new THREE.MeshStandardMaterial({color: 0x0077ff});
 	this.mesh = new THREE.Mesh( undefined, material );
 
-	this.last = new THREE.Vector3(); //last specified point on the profile
+	this.lastCenter = new THREE.Vector3(); // last specified point on the profile
 	this.center = new THREE.Vector3(); //center of the profile
 
 	this.edgeDetector = edgeDetector;
+
+	this.centers = [];
 }
 
 Shape.prototype.align = function(x,y) {
 };
 
 Shape.prototype.sweep = function(x,y) {
-	if(this.constantRadius) {
+	if(!this.straightAxis) {
+		this.sweepCurved(x,y);
+	} else if(this.constantRadius) {
 		this.sweepConstant(x,y);
-	} else this.sweepVarying(x,y);
+	} else 
+		this.sweepVarying(x,y);
 };
 
 Shape.prototype.arrowHelpers = function() {

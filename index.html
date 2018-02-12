@@ -44,6 +44,7 @@
 		<script src="js/Parallelepiped.js"></script>
 		<script src="js/Cylinder.js"></script>
 		<script src="js/EdgeDetector.js"></script>
+		<script src="js/Regression.js"></script>
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
@@ -74,20 +75,20 @@
 				parameters = {
 					straightAxis: true,
 					constantRadius: false,
-					shape: 'Cube',
-					image: 'obelisque'
+					shape: 'Cylinder',
+					image: 'vase'
 				}
 				var gui = new dat.GUI();
 				gui.add(parameters, 'straightAxis').name("Straight Axis");
 				gui.add(parameters, 'constantRadius').name("Constant Radius");
-				gui.add(parameters, 'shape', ['Cylinder', 'Cube', 'Sphere']).name('Shape');
-				gui.add(parameters, 'image', {'Bottle': 'bottle', 'Vase': 'vase', 'Bent Pyramid': 'bent-pyramid', 'Obelisk': 'obelisque'}).name('Image')
+				gui.add(parameters, 'shape', ['Cylinder', 'Cube']).name('Shape');
+				gui.add(parameters, 'image', {'Vase': 'vase', 'Obelisk': 'obelisque', 'Building': '432-park'}).name('Image')
 					.onChange(function(newImg) {
 						scene.remove(edgeDetector.image);
 						edgeDetector = new EdgeDetector('images/' + newImg, scene);
 						if(shape !== undefined) scene.remove(shape.mesh);
 						nbSelecPts = 0;
-					});
+					});	
 
 
 				// light
@@ -112,7 +113,7 @@
 				renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
 				renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
 
-				edgeDetector = new EdgeDetector('images/obelisque', scene);
+				edgeDetector = new EdgeDetector('images/' + parameters.image, scene);
 			}
 
 			function render() {

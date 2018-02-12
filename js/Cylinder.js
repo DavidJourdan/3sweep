@@ -9,6 +9,9 @@ function Cylinder(parameters, edgeDetector) {
 	}
 	this.group = new THREE.Group();
 	this.scene.add(this.group);
+
+	this.last = new THREE.Vector3();
+	this.lastCenter = new THREE.Vector3();
 }
 
 Cylinder.prototype = Object.create(Shape.prototype);
@@ -17,16 +20,8 @@ Cylinder.prototype.constructor = Cylinder;
 Cylinder.prototype.align = function(x,y) {
 	this.scene.remove(this.circle);
 
-
-	if(!this.constantRadius) {
-		this.centers = [];
-		this.centers.push(this.center);
-
-		this.edgeDetector.dx = this.line.geometry.vertices[1].x - this.line.geometry.vertices[0].x;
-		this.edgeDetector.dy = this.line.geometry.vertices[1].y - this.line.geometry.vertices[0].y;
-
-	}
-
+	this.edgeDetector.dx = this.line.geometry.vertices[1].x - this.line.geometry.vertices[0].x;
+	this.edgeDetector.dy = this.line.geometry.vertices[1].y - this.line.geometry.vertices[0].y;
 
 	var points = [];
 	points.push(this.line.geometry.vertices[0]);
@@ -61,6 +56,7 @@ Cylinder.prototype.align = function(x,y) {
 
 		this.mesh.geometry = new THREE.CylinderGeometry(radius, radius, 1, 32);
 		this.mesh.position.copy(this.center);
+		this.lastCenter.copy(this.center);
 		this.mesh.applyQuaternion(rotation);
 
 		this.frame.u.applyQuaternion(rotation);
@@ -113,11 +109,11 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 	var curPoint = new THREE.Vector3();
 	curPoint.addVectors(this.center, vec.multiplyScalar(height));
 
-	var h = curPoint.distanceTo( this.centers[this.centers.length - 1] );
+	var h = curPoint.distanceTo( this.lastCenter );
 
 	vec = this.frame.w.clone();
 	vec.multiplyScalar(Math.sign(height));
-	this.mesh.position.addVectors(this.centers[this.centers.length - 1], vec.multiplyScalar( h/2 ));
+	this.mesh.position.addVectors(this.lastCenter, vec.multiplyScalar( h/2 ));
 	if(h > 5) {
 		
 		var edges = this.edgeDetector.bresenham(curPoint, this.mesh.geometry.parameters.radiusTop);
@@ -138,7 +134,7 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 
 		mesh.applyQuaternion(q);
 
-		this.centers.push(curPoint);
+		this.lastCenter.copy(curPoint);
 		mesh.position.copy(curPoint);
 
 		this.mesh = mesh;
@@ -151,7 +147,7 @@ Cylinder.prototype.sweepVarying = function(x,y) {
 			if(Math.abs(height) / this.mesh.geometry.parameters.radiusTop > 5) { // means that the box is thin, so the error due to the orientation is big
 
 				var dir = new THREE.Vector3();
-				dir.subVectors(middle, this.centers[0]);
+				dir.subVectors(middle, this.center);
 				dir.z = 0;
 				dir.normalize();
 
